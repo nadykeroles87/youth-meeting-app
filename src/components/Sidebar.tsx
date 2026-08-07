@@ -18,6 +18,7 @@ import {
   Menu,
   LogOut,
   User,
+  Crown,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "./AuthProvider";
@@ -48,7 +49,13 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, role, logout } = useAuth();
 
-  const navItems = role === "member" ? memberNavItems : servantNavItems;
+  const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
+  const baseServantItems = servantNavItems;
+  const navItems = role === "member"
+    ? memberNavItems
+    : isAdmin
+      ? [...baseServantItems, { href: "/servants", label: "إدارة الخدام", icon: Crown }]
+      : baseServantItems;
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">

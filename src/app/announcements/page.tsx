@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import { Bell, Plus, Trash2, Pin, X } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 type Announcement = {
   id: number;
@@ -13,6 +14,8 @@ type Announcement = {
 };
 
 export default function AnnouncementsPage() {
+  const { role } = useAuth();
+  const isServant = role === "servant";
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -61,6 +64,7 @@ export default function AnnouncementsPage() {
             </h1>
             <p className="text-stone-500 text-sm mt-1">{announcements.length} إعلان</p>
           </div>
+          {isServant && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm shadow-md"
@@ -68,6 +72,7 @@ export default function AnnouncementsPage() {
             <Plus size={16} />
             إعلان جديد
           </button>
+          )}
         </div>
 
         {/* Modal */}
@@ -141,10 +146,11 @@ export default function AnnouncementsPage() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="bg-white h-28 rounded-2xl animate-pulse" />)}
           </div>
-        ) : announcements.length === 0 ? (
+        ) : (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <Bell size={60} className="mx-auto text-amber-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد إعلانات</h3>
+            {isServant && (
             <button
               onClick={() => setShowForm(true)}
               className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium mt-4"
@@ -152,6 +158,7 @@ export default function AnnouncementsPage() {
               <Plus size={16} />
               أضف أول إعلان
             </button>
+            )}
           </div>
         ) : (
           <div className="space-y-6">
@@ -163,7 +170,7 @@ export default function AnnouncementsPage() {
                 </h2>
                 <div className="space-y-3">
                   {pinned.map((a) => (
-                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} />
+                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} />
                   ))}
                 </div>
               </div>
@@ -174,7 +181,7 @@ export default function AnnouncementsPage() {
                 <h2 className="font-bold text-stone-500 text-sm uppercase tracking-wide mb-3">الإعلانات الأخرى</h2>
                 <div className="space-y-3">
                   {regular.map((a) => (
-                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} />
+                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} />
                   ))}
                 </div>
               </div>
@@ -189,9 +196,11 @@ export default function AnnouncementsPage() {
 function AnnouncementCard({
   announcement: a,
   onDelete,
+  canDelete = true,
 }: {
   announcement: Announcement;
   onDelete: (id: number) => void;
+  canDelete?: boolean;
 }) {
   return (
     <div className={`bg-white rounded-2xl shadow-sm border transition-all hover:border-amber-300 overflow-hidden ${
@@ -217,12 +226,14 @@ function AnnouncementCard({
               })}
             </p>
           </div>
+          {canDelete && (
           <button
             onClick={() => onDelete(a.id)}
             className="p-2 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors flex-shrink-0"
           >
             <Trash2 size={16} />
           </button>
+          )}
         </div>
       </div>
     </div>

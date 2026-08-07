@@ -99,6 +99,7 @@ export default function AgpeyaPage() {
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"slides" | "all">("slides");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   
   const viewerRef = useRef<HTMLDivElement>(null);
 
@@ -157,6 +158,22 @@ export default function AgpeyaPage() {
     if (currentSlideIndex > 0) {
       setCurrentSlideIndex((prev) => prev - 1);
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX;
+    const SWIPE_THRESHOLD = 50;
+    if (deltaX < -SWIPE_THRESHOLD) {
+      nextSlide(); // swipe left = next slide
+    } else if (deltaX > SWIPE_THRESHOLD) {
+      prevSlide(); // swipe right = prev slide
+    }
+    setTouchStartX(null);
   };
 
   return (
@@ -294,7 +311,11 @@ export default function AgpeyaPage() {
             </div>
 
             {/* Slide Image Card */}
-            <div className={`flex items-center justify-center relative flex-1 overflow-hidden ${isFullscreen ? "bg-black" : "bg-black/5"}`}>
+            <div
+              className={`flex items-center justify-center relative flex-1 overflow-hidden ${isFullscreen ? "bg-black" : "bg-black/5"}`}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               {/* Wrapper sized exactly to the slide's aspect ratio - overlays will be relative to this */}
               <div
                 className="relative"
