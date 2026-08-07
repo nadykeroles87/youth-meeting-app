@@ -1,0 +1,27 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { Cairo } from "next/font/google";
+import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
+
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-cairo",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "منقوش على كفك - اجتماع الشباب",
+  description: "تطبيق اجتماع شباب كنيسة العذراء - العاشر من رمضان",
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ar" dir="rtl" className={cairo.variable}>
+      <body className={`${cairo.className} bg-amber-50 text-stone-900 antialiased`}>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
+    </html>
+  );
+}
