@@ -121,11 +121,19 @@ export default function AuthPortal() {
                     onClick={async () => {
                       setLoading(true);
                       try {
-                        const res = await fetch("/api/auth/login", {
+                        const doLogin = async () => fetch("/api/auth/login", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ role: "servant", identifier: "01001234567", password: "123" }),
                         });
+                        
+                        let res = await doLogin();
+                        if (res.status === 404) {
+                          // Auto-seed for Vercel ephemeral DB
+                          await fetch("/api/seed", { method: "POST" });
+                          res = await doLogin();
+                        }
+                        
                         const data = await res.json();
                         if (data.success) login(data.user);
                       } finally { setLoading(false); }
@@ -144,11 +152,19 @@ export default function AuthPortal() {
                     onClick={async () => {
                       setLoading(true);
                       try {
-                        const res = await fetch("/api/auth/login", {
+                        const doLogin = async () => fetch("/api/auth/login", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ role: "member", identifier: "01006666666", password: "123" }),
                         });
+                        
+                        let res = await doLogin();
+                        if (res.status === 404) {
+                          // Auto-seed for Vercel ephemeral DB
+                          await fetch("/api/seed", { method: "POST" });
+                          res = await doLogin();
+                        }
+                        
                         const data = await res.json();
                         if (data.success) login(data.user);
                       } finally { setLoading(false); }
