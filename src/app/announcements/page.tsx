@@ -146,18 +146,18 @@ export default function AnnouncementsPage() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="bg-white h-28 rounded-2xl animate-pulse" />)}
           </div>
-        ) : (
+        ) : announcements.length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <Bell size={60} className="mx-auto text-amber-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد إعلانات</h3>
             {isServant && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium mt-4"
-            >
-              <Plus size={16} />
-              أضف أول إعلان
-            </button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center gap-2 bg-amber-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium mt-4"
+              >
+                <Plus size={16} />
+                أضف أول إعلان
+              </button>
             )}
           </div>
         ) : (
@@ -188,6 +188,7 @@ export default function AnnouncementsPage() {
             )}
           </div>
         )}
+
       </div>
     </PageWrapper>
   );
