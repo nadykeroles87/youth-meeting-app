@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-// Max file size: 5MB
-const MAX_SIZE = 5 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,42 +12,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "لم يتم اختيار أي ملف" }, { status: 400 });
     }
 
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "حجم الملف كبير جداً (الحد الأقصى 5MB)، استخدم رابطاً خارجياً بدلاً من ذلك" }, { status: 400 });
+    // Production: Use Vercel Blob (unlimited storage)
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const filename = `uploads/${timestamp}_${safeName}`;
+
+      const blob = await put(filename, file, {
+        access: "public",
+        contentType: file.type,
+      });
+
+      return NextResponse.json({
+        success: true,
+        fileUrl: blob.url,
+        fileName: file.name,
+        fileSize: file.size,
+      });
     }
 
+    // Development fallback: save to local /public/uploads
     const bytes = await file.arrayBuffer();
-    const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = file.type || "application/octet-stream";
-    const dataUrl = `data:${mimeType};base64,${base64}`;
+    const buffer = Buffer.from(bytes);
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const filename = `${timestamp}_${safeName}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, filename), buffer);
 
-    // In production (Vercel), store as base64 data URL directly
-    // In development, also try to save to local filesystem
-    const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production";
-    
-    if (!isProduction) {
-      try {
-        const timestamp = Date.now();
-        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-        const filename = `${timestamp}_${safeName}`;
-        const uploadDir = path.join(process.cwd(), "public", "uploads");
-        await mkdir(uploadDir, { recursive: true });
-        await writeFile(path.join(uploadDir, filename), Buffer.from(bytes));
-        return NextResponse.json({
-          success: true,
-          fileUrl: `/uploads/${filename}`,
-          fileName: file.name,
-          fileSize: file.size,
-        });
-      } catch {
-        // Fall through to base64 if local write fails
-      }
-    }
-
-    // Return the base64 data URL - stored in DB via the library API
     return NextResponse.json({
       success: true,
-      fileUrl: dataUrl,
+      fileUrl: `/uploads/${filename}`,
       fileName: file.name,
       fileSize: file.size,
     });
