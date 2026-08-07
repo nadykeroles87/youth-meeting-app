@@ -79,14 +79,20 @@ export default function MeetingsPage() {
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <CalendarDays size={60} className="mx-auto text-amber-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد اجتماعات</h3>
-            <p className="text-stone-400 mb-6">ابدأ بإضافة أول اجتماع</p>
-            <Link
-              href="/meetings/new"
-              className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm"
-            >
-              <Plus size={16} />
-              إضافة اجتماع
-            </Link>
+            {isServant ? (
+              <>
+                <p className="text-stone-400 mb-6">ابدأ بإضافة أول اجتماع</p>
+                <Link
+                  href="/meetings/new"
+                  className="inline-flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-xl font-medium text-sm"
+                >
+                  <Plus size={16} />
+                  إضافة اجتماع
+                </Link>
+              </>
+            ) : (
+              <p className="text-stone-400">سيتم إضافة الاجتماعات قريباً من قبل الخدام.</p>
+            )}
           </div>
         ) : (
           <div className="grid gap-4">
