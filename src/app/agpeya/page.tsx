@@ -169,9 +169,9 @@ export default function AgpeyaPage() {
     const deltaX = e.changedTouches[0].clientX - touchStartX;
     const SWIPE_THRESHOLD = 50;
     if (deltaX < -SWIPE_THRESHOLD) {
-      nextSlide(); // swipe left = next slide
+      prevSlide(); // swipe left = prev slide
     } else if (deltaX > SWIPE_THRESHOLD) {
-      prevSlide(); // swipe right = prev slide
+      nextSlide(); // swipe right = next slide
     }
     setTouchStartX(null);
   };
