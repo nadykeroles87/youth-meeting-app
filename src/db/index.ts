@@ -4,7 +4,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { Pool } from "pg";
 import * as schema from "./schema";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
 
 const globalForDb = globalThis as typeof globalThis & {
   __youthMeetingDb?: any;
