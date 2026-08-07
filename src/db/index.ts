@@ -118,6 +118,19 @@ if (databaseUrl) {
   if (!globalForDb.__youthMeetingDb) {
     const pool = new Pool({ connectionString: databaseUrl });
     globalForDb.__youthMeetingDb = drizzlePg(pool, { schema });
+    // Auto-create tables on first boot (idempotent, IF NOT EXISTS)
+    globalForDb.__youthMeetingInitPromise = (async () => {
+      for (const stmt of INIT_STATEMENTS) {
+        try {
+          await pool.query(stmt);
+        } catch (e: any) {
+          // ignore "already exists" errors
+          if (!e.message?.includes('already exists') && !e.message?.includes('duplicate')) {
+            console.error('DB init error:', e.message);
+          }
+        }
+      }
+    })();
   }
   dbInstance = globalForDb.__youthMeetingDb;
 } else {
