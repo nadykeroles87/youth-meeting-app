@@ -122,7 +122,9 @@ if (databaseUrl) {
   dbInstance = globalForDb.__youthMeetingDb;
 } else {
   if (!globalForDb.__youthMeetingPglite) {
-    const pglite = new PGlite("./youth_meeting_db");
+    const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
+    const dbPath = isVercel ? "memory://" : "./youth_meeting_db";
+    const pglite = new PGlite(dbPath);
     globalForDb.__youthMeetingPglite = pglite;
     globalForDb.__youthMeetingInitPromise = (async () => {
       for (const stmt of INIT_STATEMENTS) {

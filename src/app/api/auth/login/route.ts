@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, initDb } from "@/db";
 import { servants, members } from "@/db/schema";
 
 export async function POST(req: NextRequest) {
   try {
+    await initDb();
     const { role, identifier } = await req.json();
 
     if (!identifier) {
