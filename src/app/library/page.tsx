@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
 import {
   Library, FileText, Video, Link as LinkIcon, Download, Plus,
@@ -22,6 +23,7 @@ type MediaItem = {
 export default function LibraryPage() {
   const { user, role } = useAuth();
   const isServant = role === "servant";
+  const router = useRouter();
 
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export default function LibraryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
-  const [activeFile, setActiveFile] = useState<{ url: string; title: string; fileType: string } | null>(null);
+
   const [formError, setFormError] = useState<string | null>(null);
 
   // Upload mode: 'file' or 'url'
@@ -287,7 +289,7 @@ export default function LibraryPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => setActiveFile({ url: item.fileUrl, title: item.title, fileType: item.fileType })}
+                          onClick={() => router.push(`/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(item.fileType)}`)}
                           className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                         >
                           <Eye size={13} />
@@ -329,61 +331,7 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* ── File Viewer Modal ── */}
-        {activeFile && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white border border-amber-200 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl relative flex flex-col" style={{ height: '90vh' }}>
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-white flex-shrink-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 flex-shrink-0">
-                    <FileText size={18} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-stone-900 text-sm truncate">{activeFile.title}</h3>
-                    <span className="text-[10px] text-stone-500">
-                      {activeFile.fileType === "pdf" ? "ملف PDF" : activeFile.fileType === "document" ? "مستند" : "ملف"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <a
-                    href={activeFile.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-100 px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
-                  >
-                    <ExternalLink size={14} />
-                    فتح في تاب جديد
-                  </a>
-                  <a
-                    href={activeFile.url}
-                    download
-                    className="flex items-center gap-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
-                  >
-                    <Download size={14} />
-                    تحميل
-                  </a>
-                  <button
-                    onClick={() => setActiveFile(null)}
-                    className="text-stone-400 hover:text-stone-700 hover:bg-stone-100 p-2 rounded-xl transition-all"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-              {/* File Content */}
-              <div className="flex-1 bg-stone-100 relative overflow-hidden">
-                <iframe
-                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(activeFile.url)}&embedded=true`}
-                  title={activeFile.title}
-                  className="w-full h-full border-0"
-                  style={{ minHeight: '100%' }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* ── Servant Upload Modal ── */}
         {showAddModal && (

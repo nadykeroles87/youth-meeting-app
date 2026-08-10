@@ -1,0 +1,159 @@
+"use client";
+
+import React, { Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import PageWrapper from "@/components/PageWrapper";
+import {
+  ArrowRight, Download, ExternalLink, FileText, Loader2, Maximize2, ZoomIn, ZoomOut,
+} from "lucide-react";
+
+function FileViewerContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const fileUrl = searchParams.get("url") || "";
+  const title = searchParams.get("title") || "عرض الملف";
+  const fileType = searchParams.get("type") || "pdf";
+
+  const isPdf = fileType === "pdf" || fileUrl.toLowerCase().endsWith(".pdf");
+
+  if (!fileUrl) {
+    return (
+      <PageWrapper>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
+          <div className="p-5 rounded-3xl bg-amber-100 text-amber-600 border border-amber-200">
+            <FileText size={48} />
+          </div>
+          <h2 className="text-xl font-bold text-stone-800">لا يوجد ملف للعرض</h2>
+          <p className="text-sm text-stone-500">يرجى العودة للمكتبة واختيار ملف لعرضه</p>
+          <button
+            onClick={() => router.push("/library")}
+            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all cursor-pointer shadow-lg"
+          >
+            <ArrowRight size={16} />
+            العودة للمكتبة
+          </button>
+        </div>
+      </PageWrapper>
+    );
+  }
+
+  return (
+    <PageWrapper>
+      <div className="flex flex-col h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)] space-y-3">
+
+        {/* ── Toolbar ── */}
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-200/70 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
+          {/* Right side - title & back */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => router.push("/library")}
+              className="flex items-center gap-1.5 text-amber-700 hover:text-amber-900 hover:bg-amber-50 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex-shrink-0 border border-amber-200"
+            >
+              <ArrowRight size={15} />
+              رجوع للمكتبة
+            </button>
+            <div className="h-6 w-px bg-amber-200 flex-shrink-0 hidden sm:block" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex-shrink-0">
+                <FileText size={16} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-bold text-stone-900 text-sm truncate">{title}</h1>
+                <span className="text-[10px] text-stone-400 hidden sm:block">
+                  {isPdf ? "ملف PDF" : "مستند"} — يُعرض داخل التطبيق
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Left side - actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <a
+              href={fileUrl}
+              download
+              className="flex items-center gap-1.5 text-stone-600 hover:text-white hover:bg-amber-600 px-3 py-2 rounded-xl text-xs font-bold transition-all border border-amber-200 hover:border-amber-600"
+              title="تحميل الملف"
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">تحميل</span>
+            </a>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-stone-600 hover:text-white hover:bg-indigo-600 px-3 py-2 rounded-xl text-xs font-bold transition-all border border-amber-200 hover:border-indigo-600"
+              title="فتح في تاب جديد"
+            >
+              <ExternalLink size={14} />
+              <span className="hidden sm:inline">فتح في تاب جديد</span>
+            </a>
+          </div>
+        </div>
+
+        {/* ── File Content Area ── */}
+        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-amber-200/70 overflow-hidden relative min-h-0">
+          {isPdf ? (
+            <>
+              {/* Direct PDF embed - works with Vercel Blob / Cloudinary URLs */}
+              <iframe
+                src={fileUrl}
+                title={title}
+                className="w-full h-full border-0"
+                style={{ minHeight: "100%" }}
+              />
+              {/* Fallback message for browsers that can't render PDF inline */}
+              <noscript>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 text-center p-8">
+                  <FileText size={48} className="text-amber-300 mb-4" />
+                  <p className="text-stone-600 text-sm">
+                    المتصفح لا يدعم عرض PDF مباشرة.{" "}
+                    <a href={fileUrl} download className="text-amber-600 underline font-bold">
+                      اضغط هنا لتحميل الملف
+                    </a>
+                  </p>
+                </div>
+              </noscript>
+            </>
+          ) : (
+            <iframe
+              src={fileUrl}
+              title={title}
+              className="w-full h-full border-0"
+              style={{ minHeight: "100%" }}
+            />
+          )}
+        </div>
+
+        {/* ── Bottom info bar (mobile-friendly) ── */}
+        <div className="bg-amber-50 rounded-2xl border border-amber-200/50 px-4 py-2.5 flex items-center justify-between text-[11px] text-amber-800 flex-shrink-0 sm:hidden">
+          <span className="font-bold truncate">{title}</span>
+          <a
+            href={fileUrl}
+            download
+            className="flex items-center gap-1 bg-amber-600 text-white px-3 py-1.5 rounded-lg font-bold flex-shrink-0"
+          >
+            <Download size={12} />
+            تحميل
+          </a>
+        </div>
+      </div>
+    </PageWrapper>
+  );
+}
+
+export default function LibraryViewPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageWrapper>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Loader2 size={32} className="animate-spin text-amber-600" />
+          </div>
+        </PageWrapper>
+      }
+    >
+      <FileViewerContent />
+    </Suspense>
+  );
+}
