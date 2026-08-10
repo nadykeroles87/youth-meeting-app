@@ -93,28 +93,13 @@ function FileViewerContent() {
 
         {/* ── File Content Area ── */}
         <div className="flex-1 bg-white rounded-2xl shadow-sm border border-amber-200/70 overflow-hidden relative min-h-0">
-          {isPdf ? (
-            <>
-              {/* Direct PDF embed - works with Vercel Blob / Cloudinary URLs */}
-              <iframe
-                src={fileUrl}
-                title={title}
-                className="w-full h-full border-0"
-                style={{ minHeight: "100%" }}
-              />
-              {/* Fallback message for browsers that can't render PDF inline */}
-              <noscript>
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-stone-50 text-center p-8">
-                  <FileText size={48} className="text-amber-300 mb-4" />
-                  <p className="text-stone-600 text-sm">
-                    المتصفح لا يدعم عرض PDF مباشرة.{" "}
-                    <a href={fileUrl} download className="text-amber-600 underline font-bold">
-                      اضغط هنا لتحميل الملف
-                    </a>
-                  </p>
-                </div>
-              </noscript>
-            </>
+          {isPdf || fileType === "document" ? (
+            <iframe
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+              title={title}
+              className="w-full h-full border-0 bg-stone-100"
+              style={{ minHeight: "100%" }}
+            />
           ) : (
             <iframe
               src={fileUrl}
