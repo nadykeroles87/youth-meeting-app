@@ -289,10 +289,9 @@ export default function LibraryPage() {
                           href={item.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          download
                           className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                         >
-                          فتح / تحميل <Download size={13} />
+                          فتح الملف 📄
                         </a>
                       )}
                     </div>
