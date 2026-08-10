@@ -30,6 +30,7 @@ export default function LibraryPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Upload mode: 'file' or 'url'
   const [uploadMode, setUploadMode] = useState<"file" | "url">("file");
@@ -60,11 +61,27 @@ export default function LibraryPage() {
 
   const handleAddMedia = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+
+    if (!form.title.trim()) {
+      setFormError("يرجى إدخال عنوان المحتوى");
+      return;
+    }
+
+    if (uploadMode === "file") {
+      if (!selectedFile) {
+        setFormError("يرجى اختيار ملف من جهازك أولاً");
+        return;
+      }
+    } else if (!form.fileUrl.trim()) {
+      setFormError("يرجى إدخال رابط الملف أو الفيديو");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      let finalUrl = form.fileUrl;
+      let finalUrl = form.fileUrl.trim();
 
-      // Handle local file upload if uploadMode === 'file'
       if (uploadMode === "file" && selectedFile) {
         const formData = new FormData();
         formData.append("file", selectedFile);
@@ -76,31 +93,29 @@ export default function LibraryPage() {
 
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok || !uploadData.fileUrl) {
-          alert(uploadData.error || "فشل رفع الملف من الجهاز");
-          setSubmitting(false);
+          setFormError(uploadData.error || "فشل رفع الملف من الجهاز");
           return;
         }
         finalUrl = uploadData.fileUrl;
       }
 
-      if (!form.title || !finalUrl) {
-        alert("يرجى إدخال العنوان واختيار الملف");
-        setSubmitting(false);
-        return;
-      }
-
       const res = await fetch("/api/media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, fileUrl: finalUrl, uploadedBy: user?.id }),
+        body: JSON.stringify({ ...form, title: form.title.trim(), fileUrl: finalUrl, uploadedBy: user?.id }),
       });
 
-      if (res.ok) {
-        setShowAddModal(false);
-        setForm({ title: "", description: "", fileUrl: "", fileType: "pdf", category: "general" });
-        setSelectedFile(null);
-        fetchItems();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setFormError(data.error || "فشل حفظ المحتوى");
+        return;
       }
+
+      setShowAddModal(false);
+      setForm({ title: "", description: "", fileUrl: "", fileType: "pdf", category: "general" });
+      setSelectedFile(null);
+      setFormError(null);
+      fetchItems();
     } finally {
       setSubmitting(false);
     }
@@ -324,16 +339,35 @@ export default function LibraryPage() {
                   <Plus size={18} className="text-amber-600" />
                   إضافة ملف أو فيديو جديد
                 </h2>
-                <button onClick={() => setShowAddModal(false)} className="text-stone-400 hover:text-stone-700">
+                <button
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormError(null);
+                  }}
+                  className="text-stone-400 hover:text-stone-700"
+                >
                   <X size={18} />
                 </button>
               </div>
+
+              {formError && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
+                  aria-live="polite"
+                >
+                  {formError}
+                </div>
+              )}
 
               {/* Upload Mode Selector */}
               <div className="flex bg-amber-50 p-1 rounded-xl border border-amber-200 text-xs">
                 <button
                   type="button"
-                  onClick={() => setUploadMode("file")}
+                  onClick={() => {
+                    setUploadMode("file");
+                    setFormError(null);
+                  }}
                   className={`flex-1 py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     uploadMode === "file" ? "bg-amber-600 text-white shadow-sm" : "text-amber-900 hover:bg-amber-100"
                   }`}
@@ -343,7 +377,10 @@ export default function LibraryPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUploadMode("url")}
+                  onClick={() => {
+                    setUploadMode("url");
+                    setFormError(null);
+                  }}
                   className={`flex-1 py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     uploadMode === "url" ? "bg-amber-600 text-white shadow-sm" : "text-amber-900 hover:bg-amber-100"
                   }`}
@@ -353,12 +390,15 @@ export default function LibraryPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleAddMedia} className="space-y-4 text-xs">
+              <form onSubmit={handleAddMedia} noValidate className="space-y-4 text-xs">
                 <div>
                   <label className="block font-bold text-stone-700 mb-1">نوع المحتوى <span className="text-red-500">*</span></label>
                   <select
                     value={form.fileType}
-                    onChange={(e: any) => setForm({ ...form, fileType: e.target.value })}
+                    onChange={(e: any) => {
+                      setForm({ ...form, fileType: e.target.value });
+                      setFormError(null);
+                    }}
                     className="w-full border border-amber-200 rounded-xl p-2.5 bg-white text-stone-800 text-xs outline-none"
                   >
                     <option value="pdf">ملف PDF / كتاب صلاة</option>
@@ -372,9 +412,11 @@ export default function LibraryPage() {
                   <label className="block font-bold text-stone-700 mb-1">العنوان <span className="text-red-500">*</span></label>
                   <input
                     type="text"
-                    required
                     value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, title: e.target.value });
+                      setFormError(null);
+                    }}
                     placeholder="مثال: كتاب ترانيم / عرض صلاة باكر"
                     className="w-full border border-amber-200 rounded-xl p-2.5 text-stone-800 text-xs outline-none"
                   />
@@ -386,10 +428,10 @@ export default function LibraryPage() {
                     <div className="border-2 border-dashed border-amber-300 rounded-2xl p-4 text-center bg-amber-50/40 hover:bg-amber-50 transition-colors">
                       <input
                         type="file"
-                        required={uploadMode === "file"}
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {
                             setSelectedFile(e.target.files[0]);
+                            setFormError(null);
                             if (!form.title) setForm({ ...form, title: e.target.files[0].name.split(".")[0] });
                           }
                         }}
@@ -413,9 +455,11 @@ export default function LibraryPage() {
                     <label className="block font-bold text-stone-700 mb-1">رابط المحتوى (URL) <span className="text-red-500">*</span></label>
                     <input
                       type="url"
-                      required={uploadMode === "url"}
                       value={form.fileUrl}
-                      onChange={(e) => setForm({ ...form, fileUrl: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, fileUrl: e.target.value });
+                        setFormError(null);
+                      }}
                       placeholder="https://..."
                       className="w-full border border-amber-200 rounded-xl p-2.5 text-stone-800 text-xs outline-none text-left"
                       dir="ltr"
@@ -428,7 +472,10 @@ export default function LibraryPage() {
                   <textarea
                     rows={2}
                     value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, description: e.target.value });
+                      setFormError(null);
+                    }}
                     placeholder="ملاحظات أو وصف للمحتوى..."
                     className="w-full border border-amber-200 rounded-xl p-2.5 text-stone-800 text-xs outline-none resize-none"
                   />
@@ -437,7 +484,10 @@ export default function LibraryPage() {
                 <div className="flex gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setFormError(null);
+                    }}
                     className="flex-1 border border-amber-200 text-stone-600 p-2.5 rounded-xl font-bold hover:bg-amber-50 cursor-pointer"
                   >
                     إلغاء
