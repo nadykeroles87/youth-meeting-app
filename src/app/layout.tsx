@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import InstallPWA from "@/components/InstallPWA";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className={`${cairo.className} bg-amber-50 text-stone-900 antialiased`}>
         <AuthProvider>{children}</AuthProvider>
+        <InstallPWA />
         <script
           dangerouslySetInnerHTML={{
             __html: `
