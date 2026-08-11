@@ -58,6 +58,7 @@ export const meetings = pgTable("meetings", {
   meetingDate: date("meeting_date").notNull(),
   location: varchar("location", { length: 200 }).default("كنيسة العذراء - العاشر من رمضان"),
   notes: text("notes"),
+  imageUrl: text("image_url"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

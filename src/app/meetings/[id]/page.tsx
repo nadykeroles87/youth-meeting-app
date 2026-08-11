@@ -35,6 +35,7 @@ type Meeting = {
   meetingDate: string;
   location: string | null;
   notes: string | null;
+  imageUrl?: string | null;
   attendees: Attendee[];
   attendanceCount: number;
 };
@@ -203,6 +204,13 @@ export default function MeetingDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
         </div>
+
+        {/* Meeting Image */}
+        {meeting.imageUrl && (
+          <div className="rounded-2xl overflow-hidden shadow-sm border border-amber-100">
+            <img src={meeting.imageUrl} alt={meeting.title} className="w-full h-auto object-cover max-h-96" />
+          </div>
+        )}
 
         {/* Toast Message */}
         {message && (

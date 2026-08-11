@@ -61,6 +61,7 @@ export async function PUT(
         meetingDate: body.meetingDate,
         location: body.location || null,
         notes: body.notes || null,
+        imageUrl: body.imageUrl || null,
         isActive: body.isActive !== false,
       })
       .where(eq(meetings.id, parseInt(id)))

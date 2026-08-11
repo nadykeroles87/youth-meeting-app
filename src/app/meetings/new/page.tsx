@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Save } from "lucide-react";
+import { CalendarDays, ChevronRight, Save, Image as ImageIcon, Loader2, X } from "lucide-react";
 
 export default function NewMeetingPage() {
   const router = useRouter();
@@ -16,7 +16,9 @@ export default function NewMeetingPage() {
     meetingDate: new Date().toISOString().split("T")[0],
     location: "كنيسة العذراء - العاشر من رمضان",
     notes: "",
+    imageUrl: "",
   });
+  const [uploading, setUploading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +35,33 @@ export default function NewMeetingPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.fileUrl) {
+        setForm({ ...form, imageUrl: data.fileUrl });
+      } else {
+        alert(data.error || "فشل رفع الصورة");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("حدث خطأ أثناء رفع الصورة");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -134,6 +163,45 @@ export default function NewMeetingPage() {
                 placeholder="أي ملاحظات إضافية..."
                 className="w-full border border-amber-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">صورة الاجتماع (اختياري)</label>
+              {form.imageUrl ? (
+                <div className="relative rounded-xl overflow-hidden border border-amber-200 group">
+                  <img src={form.imageUrl} alt="Preview" className="w-full h-40 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, imageUrl: "" })}
+                    className="absolute top-2 left-2 bg-red-500/80 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={uploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 flex flex-col items-center justify-center text-amber-600 bg-amber-50/50 hover:bg-amber-50 transition-colors">
+                    {uploading ? (
+                      <>
+                        <Loader2 size={24} className="animate-spin mb-2" />
+                        <span className="text-sm font-medium">جاري الرفع...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={24} className="mb-2" />
+                        <span className="text-sm font-medium">اضغط أو اسحب صورة هنا</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">

@@ -14,6 +14,7 @@ type Meeting = {
   meetingDate: string;
   location: string | null;
   attendanceCount: number;
+  imageUrl?: string | null;
   isActive: boolean;
 };
 

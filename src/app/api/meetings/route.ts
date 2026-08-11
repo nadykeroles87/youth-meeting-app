@@ -14,6 +14,7 @@ export async function GET() {
         meetingDate: meetings.meetingDate,
         location: meetings.location,
         notes: meetings.notes,
+        imageUrl: meetings.imageUrl,
         isActive: meetings.isActive,
         createdAt: meetings.createdAt,
       })
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
         meetingDate: body.meetingDate,
         location: body.location || "كنيسة العذراء - العاشر من رمضان",
         notes: body.notes || null,
+        imageUrl: body.imageUrl || null,
         isActive: body.isActive !== false,
       })
       .returning();
