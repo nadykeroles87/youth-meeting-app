@@ -2,8 +2,8 @@
   "name": "nextjs-postgresql-template",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
+    "@serwist/next": "^9.5.12",
     "@types/qrcode": "^1.5.6",
     "@vercel/blob": "^2.7.0",
     "cloudinary": "^2.10.0",
@@ -24,6 +25,7 @@
     "qrcode.react": "^4.2.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "serwist": "^9.5.12",
     "sharp": "^0.35.3"
   },
   "devDependencies": {

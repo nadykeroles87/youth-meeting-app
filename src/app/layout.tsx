@@ -14,6 +14,16 @@ const cairo = Cairo({
 export const metadata: Metadata = {
   title: "منقوش على كفك - اجتماع الشباب",
   description: "تطبيق اجتماع شباب كنيسة العذراء - العاشر من رمضان",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "اجتماع الشباب",
+  },
+};
+
+export const viewport = {
+  themeColor: "#d97706",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
