@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       .values({
         title: body.title,
         content: body.content,
+        imageUrl: body.imageUrl || null,
         isPinned: body.isPinned || false,
       })
       .returning();

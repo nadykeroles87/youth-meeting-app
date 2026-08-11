@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
-import { Bell, Plus, Trash2, Pin, X } from "lucide-react";
+import { Bell, Plus, Trash2, Pin, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 type Announcement = {
   id: number;
   title: string;
   content: string;
+  imageUrl?: string | null;
   isPinned: boolean;
   createdAt: string;
 };
@@ -19,8 +20,9 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", content: "", isPinned: false });
+  const [form, setForm] = useState({ title: "", content: "", imageUrl: "", isPinned: false });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchAnnouncements = async () => {
     const res = await fetch("/api/announcements");
@@ -39,9 +41,36 @@ export default function AnnouncementsPage() {
       body: JSON.stringify(form),
     });
     setSaving(false);
-    setForm({ title: "", content: "", isPinned: false });
+    setForm({ title: "", content: "", imageUrl: "", isPinned: false });
     setShowForm(false);
     fetchAnnouncements();
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.fileUrl) {
+        setForm({ ...form, imageUrl: data.fileUrl });
+      } else {
+        alert(data.error || "فشل رفع الصورة");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("حدث خطأ أثناء رفع الصورة");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -111,6 +140,44 @@ export default function AnnouncementsPage() {
                     placeholder="محتوى الإعلان..."
                     className="w-full border border-amber-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-stone-700 mb-1.5">صورة الإعلان (اختياري)</label>
+                  {form.imageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden border border-amber-200 group">
+                      <img src={form.imageUrl} alt="Preview" className="w-full h-40 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, imageUrl: "" })}
+                        className="absolute top-2 left-2 bg-red-500/80 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploading}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <div className="border-2 border-dashed border-amber-200 rounded-xl p-6 flex flex-col items-center justify-center text-amber-600 bg-amber-50/50 hover:bg-amber-50 transition-colors">
+                        {uploading ? (
+                          <>
+                            <Loader2 size={24} className="animate-spin mb-2" />
+                            <span className="text-sm font-medium">جاري الرفع...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon size={24} className="mb-2" />
+                            <span className="text-sm font-medium">اضغط أو اسحب صورة هنا</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -217,8 +284,13 @@ function AnnouncementCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-stone-800">{a.title}</h3>
-            <p className="text-stone-600 text-sm mt-2 leading-relaxed">{a.content}</p>
-            <p className="text-xs text-stone-400 mt-3">
+            <p className="text-stone-600 text-sm mt-2 leading-relaxed whitespace-pre-wrap">{a.content}</p>
+            {a.imageUrl && (
+              <div className="mt-4 rounded-xl overflow-hidden border border-amber-100">
+                <img src={a.imageUrl} alt={a.title} className="w-full max-h-80 object-cover" />
+              </div>
+            )}
+            <p className="text-xs text-stone-400 mt-4">
               {new Date(a.createdAt).toLocaleDateString("ar-EG", {
                 weekday: "long",
                 year: "numeric",

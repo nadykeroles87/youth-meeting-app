@@ -110,6 +110,7 @@ const INIT_STATEMENTS = [
   `ALTER TABLE members ADD COLUMN IF NOT EXISTS assigned_servant_id INTEGER REFERENCES servants(id) ON DELETE SET NULL;`,
   `ALTER TABLE members ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`,
   `ALTER TABLE servants ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`,
+  `ALTER TABLE announcements ADD COLUMN IF NOT EXISTS image_url TEXT;`,
 ];
 
 let dbInstance: any;

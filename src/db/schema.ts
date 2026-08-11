@@ -96,6 +96,7 @@ export const announcements = pgTable("announcements", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   content: text("content").notNull(),
+  imageUrl: text("image_url"),
   isPinned: boolean("is_pinned").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
