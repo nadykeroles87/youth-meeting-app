@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
-import { CheckSquare, QrCode, Search, CalendarDays, X, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import { CheckSquare, QrCode, Search, CalendarDays, X, CheckCircle, AlertCircle, ArrowLeft, Camera } from "lucide-react";
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 type Meeting = {
   id: number;
@@ -37,6 +38,7 @@ export default function AttendancePage() {
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [recentAttendees, setRecentAttendees] = useState<{ name: string; time: string }[]>([]);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     fetchMeetings();
@@ -106,14 +108,13 @@ export default function AttendancePage() {
     }
   };
 
-  const handleQrSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!qrInput || !selectedMeeting) return;
+  const submitQrCode = async (code: string) => {
+    if (!code || !selectedMeeting) return;
 
     const res = await fetch("/api/attendance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meetingId: selectedMeeting.id, qrCode: qrInput }),
+      body: JSON.stringify({ meetingId: selectedMeeting.id, qrCode: code }),
     });
     const data = await res.json();
     setQrInput("");
@@ -126,7 +127,15 @@ export default function AttendancePage() {
       showMessage("success", `✅ تم تسجيل حضور ${data.memberName}`);
       const now = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
       setRecentAttendees((prev) => [{ name: data.memberName, time: now }, ...prev].slice(0, 10));
+      setSelectedMeeting((prev) =>
+        prev ? { ...prev, attendanceCount: prev.attendanceCount + 1 } : prev
+      );
     }
+  };
+
+  const handleQrSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitQrCode(qrInput);
   };
 
   return (
@@ -194,10 +203,39 @@ export default function AttendancePage() {
 
             {/* QR Code Input */}
             <div className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
-              <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center gap-2">
-                <QrCode size={16} className="text-amber-600" />
-                تسجيل بـ QR Code
+              <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <QrCode size={16} className="text-amber-600" />
+                  تسجيل بـ QR Code
+                </div>
+                <button
+                  onClick={() => setIsScannerOpen(!isScannerOpen)}
+                  disabled={!selectedMeeting}
+                  className="flex items-center gap-1.5 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <Camera size={14} />
+                  {isScannerOpen ? "إغلاق الكاميرا" : "فتح الكاميرا"}
+                </button>
               </h2>
+              
+              {isScannerOpen && selectedMeeting && (
+                <div className="mb-4 rounded-xl overflow-hidden border-2 border-amber-300 relative bg-black">
+                  <Scanner
+                    onScan={(result) => {
+                      if (result && result.length > 0) {
+                        const scannedCode = result[0].rawValue;
+                        setQrInput(scannedCode);
+                        submitQrCode(scannedCode);
+                        setIsScannerOpen(false); // Close camera after successful scan
+                      }
+                    }}
+                  />
+                  <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
+                    <span className="bg-black/50 text-white text-xs px-3 py-1 rounded-full">وجه الكاميرا نحو الكود</span>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleQrSubmit} className="flex gap-2">
                 <input
                   type="text"
@@ -216,7 +254,7 @@ export default function AttendancePage() {
                 </button>
               </form>
               <p className="text-xs text-stone-400 mt-2">
-                💡 يمكنك توصيل قارئ QR وسيعمل تلقائياً
+                💡 يمكنك استخدام الكاميرا أو توصيل جهاز قارئ QR وسيعمل تلقائياً
               </p>
             </div>
 
