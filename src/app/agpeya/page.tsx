@@ -334,6 +334,19 @@ export default function AgpeyaPage() {
                   loading="eager"
                 />
 
+                {/* Preload adjacent slides to prevent delay when navigating */}
+                <div className="hidden" aria-hidden="true">
+                  {currentSlideIndex > 0 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex}.JPG`} alt="preload prev" />
+                  )}
+                  {currentSlideIndex < hourMeta.slidesCount - 1 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 2}.JPG`} alt="preload next 1" />
+                  )}
+                  {currentSlideIndex < hourMeta.slidesCount - 2 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 3}.JPG`} alt="preload next 2" />
+                  )}
+                </div>
+
                 {/* Hyperlinks Overlay - positioned as % of the slide's coordinate space */}
                 {hourLinks?.slides?.[(currentSlideIndex + 1).toString()]?.map((link: any, i: number) => {
                   const left = (link.x / hourLinks.slideSize.width) * 100;
