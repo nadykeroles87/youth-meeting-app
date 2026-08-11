@@ -23,6 +23,7 @@ export default function AnnouncementsPage() {
   const [form, setForm] = useState({ title: "", content: "", imageUrl: "", isPinned: false });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
   const fetchAnnouncements = async () => {
     const res = await fetch("/api/announcements");
@@ -237,7 +238,7 @@ export default function AnnouncementsPage() {
                 </h2>
                 <div className="space-y-3">
                   {pinned.map((a) => (
-                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} />
+                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} onClick={() => setSelectedAnnouncement(a)} />
                   ))}
                 </div>
               </div>
@@ -248,11 +249,51 @@ export default function AnnouncementsPage() {
                 <h2 className="font-bold text-stone-500 text-sm uppercase tracking-wide mb-3">الإعلانات الأخرى</h2>
                 <div className="space-y-3">
                   {regular.map((a) => (
-                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} />
+                    <AnnouncementCard key={a.id} announcement={a} onDelete={handleDelete} canDelete={isServant} onClick={() => setSelectedAnnouncement(a)} />
                   ))}
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* View Modal */}
+        {selectedAnnouncement && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedAnnouncement(null)}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  {selectedAnnouncement.isPinned && (
+                    <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold mb-2">
+                      <Pin size={12} />
+                      مثبت
+                    </div>
+                  )}
+                  <h2 className="text-2xl font-bold text-stone-800">{selectedAnnouncement.title}</h2>
+                  <p className="text-xs text-stone-400 mt-2">
+                    {new Date(selectedAnnouncement.createdAt).toLocaleDateString("ar-EG", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <button onClick={() => setSelectedAnnouncement(null)} className="p-2 bg-stone-100 hover:bg-stone-200 rounded-full transition-colors">
+                  <X size={20} className="text-stone-600" />
+                </button>
+              </div>
+              
+              <div className="mt-6 space-y-6">
+                <p className="text-stone-700 text-base leading-relaxed whitespace-pre-wrap">{selectedAnnouncement.content}</p>
+                
+                {selectedAnnouncement.imageUrl && (
+                  <div className="rounded-xl overflow-hidden border-2 border-stone-100">
+                    <img src={selectedAnnouncement.imageUrl} alt={selectedAnnouncement.title} className="w-full h-auto object-contain" />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -265,13 +306,17 @@ function AnnouncementCard({
   announcement: a,
   onDelete,
   canDelete = true,
+  onClick,
 }: {
   announcement: Announcement;
   onDelete: (id: number) => void;
   canDelete?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border transition-all hover:border-amber-300 overflow-hidden ${
+    <div 
+      onClick={onClick}
+      className={`bg-white rounded-2xl shadow-sm border transition-all hover:border-amber-300 hover:shadow-md cursor-pointer overflow-hidden ${
       a.isPinned ? "border-amber-300" : "border-amber-100"
     }`}>
       {a.isPinned && (
@@ -283,28 +328,33 @@ function AnnouncementCard({
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-stone-800">{a.title}</h3>
-            <p className="text-stone-600 text-sm mt-2 leading-relaxed whitespace-pre-wrap">{a.content}</p>
-            {a.imageUrl && (
-              <div className="mt-4 rounded-xl overflow-hidden border border-amber-100">
-                <img src={a.imageUrl} alt={a.title} className="w-full max-h-80 object-cover" />
-              </div>
-            )}
-            <p className="text-xs text-stone-400 mt-4">
-              {new Date(a.createdAt).toLocaleDateString("ar-EG", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
+            <h3 className="font-bold text-stone-800 text-lg">{a.title}</h3>
+            <p className="text-stone-500 text-sm mt-1 line-clamp-2">{a.content}</p>
+            <div className="flex items-center gap-4 mt-4">
+              <p className="text-xs text-stone-400 font-medium">
+                {new Date(a.createdAt).toLocaleDateString("ar-EG", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+              {a.imageUrl && (
+                <span className="flex items-center gap-1 text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-md">
+                  <ImageIcon size={14} />
+                  مرفق صورة
+                </span>
+              )}
+            </div>
           </div>
           {canDelete && (
           <button
-            onClick={() => onDelete(a.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(a.id);
+            }}
             className="p-2 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors flex-shrink-0"
           >
-            <Trash2 size={16} />
+            <Trash2 size={18} />
           </button>
           )}
         </div>
