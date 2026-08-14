@@ -19,9 +19,6 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
   const [scale, setScale] = useState<number>(1.0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Proxy the URL through our API to bypass CORS
-  const proxiedUrl = `/api/pdf-proxy?url=${encodeURIComponent(fileUrl)}`;
-
   // Measure the container width so pages fill it edge-to-edge
   useEffect(() => {
     const el = containerRef.current;
@@ -75,7 +72,7 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
       )}
 
       <Document
-        file={proxiedUrl}
+        file={fileUrl}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={
           <div className="flex flex-col items-center justify-center py-32">

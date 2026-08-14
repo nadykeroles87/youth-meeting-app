@@ -32,6 +32,22 @@ function FileViewerContent() {
   // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.)
   const useOfficeViewer = !isPdf;
 
+  // Determine an appropriate extension for the proxy URL
+  let proxyExtension = ".pdf";
+  if (useOfficeViewer) {
+    if (fileType === "presentation" || urlLower.includes(".ppt")) proxyExtension = ".pptx";
+    else if (fileType === "document" || urlLower.includes(".doc")) proxyExtension = ".docx";
+    else proxyExtension = ".pptx"; // Default fallback for office viewer
+  }
+  
+  // Construct the proxy URL (ensure absolute URL for Microsoft Office Viewer)
+  // During SSR, we can't get window.location.origin, so we use a relative path for PdfViewer
+  // but we MUST use an absolute URL for Office Viewer.
+  const proxyPath = `/api/file-proxy/document${proxyExtension}?url=${encodeURIComponent(fileUrl)}`;
+  const absoluteProxyUrl = typeof window !== "undefined" 
+    ? `${window.location.origin}${proxyPath}`
+    : `https://youth-meeting-app.vercel.app${proxyPath}`;
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExitBtn, setShowExitBtn] = useState(true);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
@@ -91,7 +107,7 @@ function FileViewerContent() {
         ref={viewerContainerRef}
         onMouseMove={startHideTimer}
         onTouchStart={startHideTimer}
-        className={`flex flex-col relative ${
+        className={`flex flex-col relative overflow-hidden ${
           isFullscreen
             ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen"
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
@@ -157,13 +173,13 @@ function FileViewerContent() {
           {useOfficeViewer ? (
             /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
             <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`}
               title={title}
               className="w-full h-full border-0"
             />
           ) : (
             /* Custom React-PDF Viewer for PDF files */
-            <PdfViewer fileUrl={fileUrl} />
+            <PdfViewer fileUrl={absoluteProxyUrl} />
           )}
         </div>
       </div>
