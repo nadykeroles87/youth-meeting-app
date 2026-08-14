@@ -2,20 +2,8 @@
 
 import React, { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import PageWrapper from "@/components/PageWrapper";
 import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download } from "lucide-react";
-
-// Dynamically import react-pdf to avoid SSR issues (DOMMatrix not available on server)
-const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex flex-col items-center justify-center py-32">
-      <Loader2 size={36} className="animate-spin text-amber-600 mb-3" />
-      <p className="text-sm font-bold text-stone-500">جاري تحميل العارض...</p>
-    </div>
-  ),
-});
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -25,7 +13,15 @@ function FileViewerContent() {
   const title = searchParams.get("title") || "عرض الملف";
   const fileType = searchParams.get("type") || "pdf";
 
-  const isPdf = fileType === "pdf" || fileUrl.toLowerCase().endsWith(".pdf");
+  // Check actual file extension, not just the type param
+  const urlLower = fileUrl.toLowerCase();
+  const isActuallyPdf = urlLower.includes(".pdf");
+  const isPptx = urlLower.includes(".pptx") || urlLower.includes(".ppt");
+  const isDoc = urlLower.includes(".docx") || urlLower.includes(".doc");
+  
+  // Use Google Docs viewer for non-PDF files (pptx, docx, etc.)
+  // Use browser's native embed for actual PDF files
+  const useGoogleViewer = !isActuallyPdf || isPptx || isDoc;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExitBtn, setShowExitBtn] = useState(true);
@@ -84,9 +80,11 @@ function FileViewerContent() {
     <PageWrapper>
       <div
         ref={viewerContainerRef}
+        onMouseMove={isFullscreen ? startHideTimer : undefined}
+        onTouchStart={isFullscreen ? startHideTimer : undefined}
         className={`flex flex-col ${
           isFullscreen
-            ? "fixed inset-0 z-[200] bg-stone-800 h-screen w-screen"
+            ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen"
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
         }`}
       >
@@ -130,7 +128,7 @@ function FileViewerContent() {
           </div>
         )}
 
-        {/* Floating Exit Button (Only in fullscreen, auto-hides) */}
+        {/* Floating Exit Button (auto-hides after 2s) */}
         {isFullscreen && (
           <button
             onClick={toggleFullscreen}
@@ -143,20 +141,27 @@ function FileViewerContent() {
           </button>
         )}
 
-        {/* ── Clean Content Area ── */}
-        <div
-          onMouseMove={isFullscreen ? startHideTimer : undefined}
-          onTouchStart={isFullscreen ? startHideTimer : undefined}
-          className={`flex-1 overflow-auto min-h-0 ${
-            isFullscreen ? "bg-stone-800" : "bg-stone-200 rounded-2xl border border-amber-200/70"
-          }`}>
-          {isPdf ? (
-            <PdfViewer fileUrl={fileUrl} />
+        {/* ── Content Area ── */}
+        <div className={`flex-1 overflow-hidden min-h-0 ${
+          isFullscreen ? "bg-stone-900" : "bg-white rounded-2xl shadow-sm border border-amber-200/70"
+        }`}>
+          {useGoogleViewer ? (
+            /* Google Docs Viewer for non-PDF files (PPTX, DOCX, etc.) */
+            <div className="w-full h-full overflow-hidden relative">
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                title={title}
+                className="w-full absolute top-0 left-0 border-0"
+                style={{ height: "calc(100% + 100px)" }}
+              />
+            </div>
           ) : (
-            <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-              title={title}
-              className="w-full h-full border-0 bg-white"
+            /* Browser's native PDF viewer via embed — cleanest possible */
+            <embed
+              src={fileUrl}
+              type="application/pdf"
+              className="w-full h-full"
+              style={{ border: "none" }}
             />
           )}
         </div>
