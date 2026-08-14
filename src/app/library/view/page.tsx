@@ -1,13 +1,21 @@
 "use client";
 
-import React, { Suspense, useState, useRef, useEffect } from "react";
+import React, { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import PageWrapper from "@/components/PageWrapper";
-import { ArrowRight, FileText, Loader2, Maximize2, Minimize, ZoomIn, ZoomOut, Download } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download } from "lucide-react";
 
-// Import React PDF Viewer (core only — no default-layout toolbar)
-import { Worker, Viewer, SpecialZoomLevel } from '@react-pdf-viewer/core';
-import '@react-pdf-viewer/core/lib/styles/index.css';
+// Dynamically import react-pdf to avoid SSR issues (DOMMatrix not available on server)
+const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center py-32">
+      <Loader2 size={36} className="animate-spin text-amber-600 mb-3" />
+      <p className="text-sm font-bold text-stone-500">جاري تحميل العارض...</p>
+    </div>
+  ),
+});
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -22,24 +30,18 @@ function FileViewerContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement && viewerContainerRef.current) {
-      viewerContainerRef.current.requestFullscreen().catch((err) => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
+      viewerContainerRef.current.requestFullscreen().catch(console.error);
     } else if (document.fullscreenElement) {
       document.exitFullscreen();
     }
-  };
+  }, []);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
   if (!fileUrl) {
@@ -64,17 +66,17 @@ function FileViewerContent() {
 
   return (
     <PageWrapper>
-      <div 
+      <div
         ref={viewerContainerRef}
-        className={`flex flex-col space-y-2 ${
-          isFullscreen 
-            ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen p-0" 
+        className={`flex flex-col ${
+          isFullscreen
+            ? "fixed inset-0 z-[200] bg-stone-800 h-screen w-screen"
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
         }`}
       >
         {/* ── App Toolbar ── */}
         {!isFullscreen && (
-          <div className="bg-white rounded-2xl shadow-sm border border-amber-200/70 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
+          <div className="bg-white rounded-2xl shadow-sm border border-amber-200/70 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0 mb-2">
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => router.push("/library")}
@@ -84,7 +86,6 @@ function FileViewerContent() {
                 <span className="hidden sm:inline">رجوع للمكتبة</span>
                 <span className="sm:hidden">رجوع</span>
               </button>
-              <div className="h-6 w-px bg-amber-200 flex-shrink-0 hidden sm:block" />
               <div className="flex items-center gap-2 min-w-0">
                 <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 flex-shrink-0">
                   <FileText size={16} />
@@ -117,28 +118,19 @@ function FileViewerContent() {
         {isFullscreen && (
           <button
             onClick={toggleFullscreen}
-            className="absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all"
+            className="fixed top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all"
             title="الخروج من ملء الشاشة"
           >
             <Minimize size={20} />
           </button>
         )}
 
-        {/* ── Clean PDF Content Area (no library toolbars) ── */}
-        <div className={`flex-1 overflow-hidden relative min-h-0 ${
-          isFullscreen 
-            ? "bg-stone-900" 
-            : "bg-stone-100 rounded-2xl shadow-sm border border-amber-200/70"
+        {/* ── Clean Content Area ── */}
+        <div className={`flex-1 overflow-auto min-h-0 ${
+          isFullscreen ? "bg-stone-800" : "bg-stone-200 rounded-2xl border border-amber-200/70"
         }`}>
           {isPdf ? (
-            <Worker workerUrl="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js">
-              <div style={{ height: '100%', direction: 'ltr' }}>
-                <Viewer
-                  fileUrl={fileUrl}
-                  defaultScale={SpecialZoomLevel.PageWidth}
-                />
-              </div>
-            </Worker>
+            <PdfViewer fileUrl={fileUrl} />
           ) : (
             <iframe
               src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
@@ -167,4 +159,3 @@ export default function LibraryViewPage() {
     </Suspense>
   );
 }
-

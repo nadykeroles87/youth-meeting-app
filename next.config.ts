@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "100mb",
     },
   },
+  turbopack: {
+    resolveAlias: {
+      canvas: { browser: "" },
+    },
+  },
+  webpack: (config) => {
+    // Required for react-pdf to work in Next.js (webpack fallback)
+    config.resolve.alias.canvas = false;
+    return config;
+  },
 };
 
 export default withSerwist(nextConfig);
