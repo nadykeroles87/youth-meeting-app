@@ -158,11 +158,10 @@ function FileViewerContent() {
           {isFullscreen && (
             <button
               onClick={toggleFullscreen}
-              className="absolute top-6 left-6 z-[210] p-3 rounded-xl bg-black/80 hover:bg-black text-white transition-all shadow-2xl flex items-center gap-2 border border-white/20"
+              className="absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/40 hover:bg-black/80 text-white/80 hover:text-white transition-all shadow-lg backdrop-blur-sm border border-white/10"
               title="الخروج من ملء الشاشة"
             >
-              <Minimize size={18} />
-              <span className="text-sm font-bold">إنهاء ملء الشاشة</span>
+              <Minimize size={20} />
             </button>
           )}
         </div>
