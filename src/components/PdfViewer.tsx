@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -18,7 +18,20 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [scale, setScale] = useState<number>(1.0);
+  const [showControls, setShowControls] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startHideTimer = useCallback(() => {
+    setShowControls(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+  }, []);
+
+  useEffect(() => {
+    startHideTimer();
+    return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
+  }, [startHideTimer]);
 
   // Measure the container width so pages fill it edge-to-edge
   useEffect(() => {
@@ -42,10 +55,19 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const pageWidth = Math.max((containerWidth - 20) * scale, 300);
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-auto relative">
+    <div 
+      ref={containerRef} 
+      className="w-full h-full overflow-auto relative"
+      onMouseMove={startHideTimer}
+      onTouchStart={startHideTimer}
+    >
       {/* Floating zoom controls */}
       {numPages > 0 && (
-        <div className="sticky top-3 z-20 flex justify-center pointer-events-none">
+        <div 
+          className={`sticky top-3 z-20 flex justify-center pointer-events-none transition-all duration-500 ${
+            showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"
+          }`}
+        >
           <div className="inline-flex items-center gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-amber-200/70 px-2 py-1.5 pointer-events-auto">
             <button
               onClick={zoomOut}
