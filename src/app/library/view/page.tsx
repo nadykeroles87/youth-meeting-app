@@ -141,7 +141,7 @@ function FileViewerContent() {
                 src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
                 title={title}
                 className="w-full absolute top-0 left-0 border-0"
-                style={{ height: "calc(100% + 55px)" }} // Crop Google Toolbar for non-PDFs
+                style={{ height: "calc(100% + 75px)" }} // Crop Google Toolbar for non-PDFs
               />
             </div>
           )}
