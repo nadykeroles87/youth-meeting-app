@@ -3,15 +3,11 @@
 import React, { Suspense, useState, useRef, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
-import { ArrowRight, FileText, Loader2, Maximize2, Minimize } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Maximize2, Minimize, ZoomIn, ZoomOut, Download } from "lucide-react";
 
-// Import React PDF Viewer
-import { Worker, Viewer } from '@react-pdf-viewer/core';
-import { defaultLayoutPlugin } from '@react-pdf-viewer/default-layout';
-
-// Import styles
+// Import React PDF Viewer (core only — no default-layout toolbar)
+import { Worker, Viewer, SpecialZoomLevel } from '@react-pdf-viewer/core';
 import '@react-pdf-viewer/core/lib/styles/index.css';
-import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -25,9 +21,6 @@ function FileViewerContent() {
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Create new plugin instance
-  const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement && viewerContainerRef.current) {
@@ -75,11 +68,11 @@ function FileViewerContent() {
         ref={viewerContainerRef}
         className={`flex flex-col space-y-2 ${
           isFullscreen 
-            ? "fixed inset-0 z-[200] bg-stone-100 h-screen w-screen p-0" 
+            ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen p-0" 
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
         }`}
       >
-        {/* ── Custom App Toolbar (Only outside fullscreen) ── */}
+        {/* ── App Toolbar ── */}
         {!isFullscreen && (
           <div className="bg-white rounded-2xl shadow-sm border border-amber-200/70 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -108,42 +101,50 @@ function FileViewerContent() {
                 <Maximize2 size={14} />
                 <span className="hidden sm:inline">ملء الشاشة</span>
               </button>
+              <a
+                href={fileUrl}
+                download
+                className="flex items-center gap-1.5 text-stone-600 hover:text-white hover:bg-amber-600 px-3 py-2 rounded-xl text-xs font-bold transition-all border border-amber-200 hover:border-amber-600"
+              >
+                <Download size={14} />
+                <span className="hidden sm:inline">تحميل</span>
+              </a>
             </div>
           </div>
         )}
 
-        {/* Floating Custom Exit Button (Only in fullscreen) */}
+        {/* Floating Exit Button (Only in fullscreen) */}
         {isFullscreen && (
           <button
             onClick={toggleFullscreen}
-            className="absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/60 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all"
+            className="absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all"
             title="الخروج من ملء الشاشة"
           >
             <Minimize size={20} />
           </button>
         )}
 
-        <div className={`flex-1 overflow-hidden relative min-h-0 bg-white ${!isFullscreen && "rounded-2xl shadow-sm border border-amber-200/70"}`}>
+        {/* ── Clean PDF Content Area (no library toolbars) ── */}
+        <div className={`flex-1 overflow-hidden relative min-h-0 ${
+          isFullscreen 
+            ? "bg-stone-900" 
+            : "bg-stone-100 rounded-2xl shadow-sm border border-amber-200/70"
+        }`}>
           {isPdf ? (
             <Worker workerUrl="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js">
               <div style={{ height: '100%', direction: 'ltr' }}>
                 <Viewer
                   fileUrl={fileUrl}
-                  plugins={[defaultLayoutPluginInstance]}
-                  theme="light"
-                  defaultScale={1}
+                  defaultScale={SpecialZoomLevel.PageWidth}
                 />
               </div>
             </Worker>
           ) : (
-            <div className="w-full h-full overflow-hidden relative">
-              <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-                title={title}
-                className="w-full absolute top-0 left-0 border-0"
-                style={{ height: "calc(100% + 100px)" }} // Crop Google Toolbar for non-PDFs
-              />
-            </div>
+            <iframe
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+              title={title}
+              className="w-full h-full border-0 bg-white"
+            />
           )}
         </div>
       </div>
@@ -166,3 +167,4 @@ export default function LibraryViewPage() {
     </Suspense>
   );
 }
+
