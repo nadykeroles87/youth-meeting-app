@@ -3,7 +3,19 @@
 import React, { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
-import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download } from "lucide-react";
+import dynamic from "next/dynamic";
+
+// Dynamically import the custom PDF viewer (no SSR to avoid DOMMatrix errors)
+const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center py-32">
+      <Loader2 size={36} className="animate-spin text-amber-600 mb-3" />
+      <p className="text-sm font-bold text-stone-500">جاري تحميل العارض...</p>
+    </div>
+  ),
+});
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -18,12 +30,10 @@ function FileViewerContent() {
   const isPdf = fileType === "pdf" || urlLower.includes(".pdf");
   
   // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.)
-  // Use browser's native embed for actual PDF files
   const useOfficeViewer = !isPdf;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [zoom, setZoom] = useState(100);
+  const [showExitBtn, setShowExitBtn] = useState(true);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -36,9 +46,9 @@ function FileViewerContent() {
   }, []);
 
   const startHideTimer = useCallback(() => {
-    setShowControls(true);
+    setShowExitBtn(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+    hideTimerRef.current = setTimeout(() => setShowExitBtn(false), 2000);
   }, []);
 
   useEffect(() => {
@@ -51,14 +61,9 @@ function FileViewerContent() {
   }, [startHideTimer]);
 
   useEffect(() => {
-    // Start hide timer initially
     startHideTimer();
     return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
   }, [startHideTimer]);
-
-  const zoomIn = () => setZoom((z) => Math.min(z + 25, 300));
-  const zoomOut = () => setZoom((z) => Math.max(z - 25, 50));
-  const resetZoom = () => setZoom(100);
 
   if (!fileUrl) {
     return (
@@ -86,7 +91,7 @@ function FileViewerContent() {
         ref={viewerContainerRef}
         onMouseMove={startHideTimer}
         onTouchStart={startHideTimer}
-        className={`flex flex-col relative overflow-hidden ${
+        className={`flex flex-col relative ${
           isFullscreen
             ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen"
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
@@ -132,12 +137,12 @@ function FileViewerContent() {
           </div>
         )}
 
-        {/* Floating Exit Button (auto-hides after 2s) */}
+        {/* Floating Exit Button (auto-hides) */}
         {isFullscreen && (
           <button
             onClick={toggleFullscreen}
-            className={`fixed top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all duration-500 ${
-              showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+            className={`absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all duration-500 ${
+              showExitBtn ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
             }`}
             title="الخروج من ملء الشاشة"
           >
@@ -145,67 +150,21 @@ function FileViewerContent() {
           </button>
         )}
 
-        {/* ── Floating Zoom Controls (auto-hides) ── */}
-        <div
-          className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[210] transition-all duration-500 ${
-            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-          }`}
-        >
-          <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md rounded-2xl px-3 py-2 shadow-2xl border border-white/10">
-            <button
-              onClick={zoomOut}
-              className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
-              title="تصغير"
-            >
-              <ZoomOut size={18} />
-            </button>
-            <button
-              onClick={resetZoom}
-              className="px-3 py-1.5 rounded-xl hover:bg-white/10 text-white text-xs font-bold transition-colors min-w-[50px]"
-            >
-              {zoom}%
-            </button>
-            <button
-              onClick={zoomIn}
-              className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
-              title="تكبير"
-            >
-              <ZoomIn size={18} />
-            </button>
-          </div>
-        </div>
-
         {/* ── Content Area ── */}
         <div className={`flex-1 overflow-auto min-h-0 ${
           isFullscreen ? "bg-stone-900" : "bg-white rounded-2xl shadow-sm border border-amber-200/70"
         }`}>
-          <div
-            style={{ 
-              transform: `scale(${zoom / 100})`, 
-              transformOrigin: "top center",
-              width: `${10000 / zoom}%`,
-              minHeight: "100%",
-            }}
-          >
-            {useOfficeViewer ? (
-              /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
-              <div className="w-full relative" style={{ height: `${100 * 100 / zoom}vh` }}>
-                <iframe
-                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
-                  title={title}
-                  className="w-full h-full absolute top-0 left-0 border-0"
-                />
-              </div>
-            ) : (
-              /* Browser's native PDF viewer via embed */
-              <embed
-                src={fileUrl}
-                type="application/pdf"
-                className="w-full"
-                style={{ border: "none", height: `${100 * 100 / zoom}vh` }}
-              />
-            )}
-          </div>
+          {useOfficeViewer ? (
+            /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
+            <iframe
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
+              title={title}
+              className="w-full h-full border-0"
+            />
+          ) : (
+            /* Custom React-PDF Viewer for PDF files */
+            <PdfViewer fileUrl={fileUrl} />
+          )}
         </div>
       </div>
     </PageWrapper>
