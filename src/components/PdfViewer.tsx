@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { FileText, Loader2, Download } from "lucide-react";
+import { FileText, Loader2, Download, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 
 // Set up the PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -16,7 +16,11 @@ interface PdfViewerProps {
 export default function PdfViewer({ fileUrl }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(800);
+  const [scale, setScale] = useState<number>(1.0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Proxy the URL through our API to bypass CORS
+  const proxiedUrl = `/api/pdf-proxy?url=${encodeURIComponent(fileUrl)}`;
 
   // Measure the container width so pages fill it edge-to-edge
   useEffect(() => {
@@ -33,10 +37,45 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
     setNumPages(numPages);
   }
 
+  const zoomIn = () => setScale((s) => Math.min(s + 0.25, 3));
+  const zoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
+  const resetZoom = () => setScale(1.0);
+
+  const pageWidth = Math.max((containerWidth - 20) * scale, 300);
+
   return (
-    <div ref={containerRef} className="w-full h-full overflow-auto p-2">
+    <div ref={containerRef} className="w-full h-full overflow-auto relative">
+      {/* Floating zoom controls */}
+      {numPages > 0 && (
+        <div className="sticky top-3 z-20 flex justify-center pointer-events-none">
+          <div className="inline-flex items-center gap-1 bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-amber-200/70 px-2 py-1.5 pointer-events-auto">
+            <button
+              onClick={zoomOut}
+              className="p-1.5 rounded-lg hover:bg-amber-50 text-stone-600 transition-colors"
+              title="تصغير"
+            >
+              <ZoomOut size={16} />
+            </button>
+            <button
+              onClick={resetZoom}
+              className="px-2 py-1 rounded-lg hover:bg-amber-50 text-stone-700 text-xs font-bold transition-colors min-w-[48px]"
+              title="إعادة ضبط"
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              onClick={zoomIn}
+              className="p-1.5 rounded-lg hover:bg-amber-50 text-stone-600 transition-colors"
+              title="تكبير"
+            >
+              <ZoomIn size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <Document
-        file={fileUrl}
+        file={proxiedUrl}
         onLoadSuccess={onDocumentLoadSuccess}
         loading={
           <div className="flex flex-col items-center justify-center py-32">
@@ -62,16 +101,18 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
           </div>
         }
       >
-        {Array.from({ length: numPages }, (_, i) => (
-          <Page
-            key={`page_${i + 1}`}
-            pageNumber={i + 1}
-            width={Math.max(containerWidth - 20, 300)}
-            className="mx-auto mb-3 shadow-md"
-            renderAnnotationLayer={false}
-            renderTextLayer={false}
-          />
-        ))}
+        <div className="flex flex-col items-center py-4 px-2">
+          {Array.from({ length: numPages }, (_, i) => (
+            <Page
+              key={`page_${i + 1}`}
+              pageNumber={i + 1}
+              width={pageWidth}
+              className="mb-4 shadow-lg rounded-sm"
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+            />
+          ))}
+        </div>
       </Document>
     </div>
   );

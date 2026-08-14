@@ -28,7 +28,9 @@ function FileViewerContent() {
   const isPdf = fileType === "pdf" || fileUrl.toLowerCase().endsWith(".pdf");
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExitBtn, setShowExitBtn] = useState(true);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement && viewerContainerRef.current) {
@@ -39,9 +41,23 @@ function FileViewerContent() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    const handler = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (isFull) startHideTimer();
+    };
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const startHideTimer = useCallback(() => {
+    setShowExitBtn(true);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => setShowExitBtn(false), 2000);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
   }, []);
 
   if (!fileUrl) {
@@ -114,11 +130,13 @@ function FileViewerContent() {
           </div>
         )}
 
-        {/* Floating Exit Button (Only in fullscreen) */}
+        {/* Floating Exit Button (Only in fullscreen, auto-hides) */}
         {isFullscreen && (
           <button
             onClick={toggleFullscreen}
-            className="fixed top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all"
+            className={`fixed top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all duration-500 ${
+              showExitBtn ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+            }`}
             title="الخروج من ملء الشاشة"
           >
             <Minimize size={20} />
@@ -126,9 +144,12 @@ function FileViewerContent() {
         )}
 
         {/* ── Clean Content Area ── */}
-        <div className={`flex-1 overflow-auto min-h-0 ${
-          isFullscreen ? "bg-stone-800" : "bg-stone-200 rounded-2xl border border-amber-200/70"
-        }`}>
+        <div
+          onMouseMove={isFullscreen ? startHideTimer : undefined}
+          onTouchStart={isFullscreen ? startHideTimer : undefined}
+          className={`flex-1 overflow-auto min-h-0 ${
+            isFullscreen ? "bg-stone-800" : "bg-stone-200 rounded-2xl border border-amber-200/70"
+          }`}>
           {isPdf ? (
             <PdfViewer fileUrl={fileUrl} />
           ) : (
