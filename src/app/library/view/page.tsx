@@ -3,7 +3,7 @@
 import React, { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
-import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Maximize2, Minimize, Download, ZoomIn, ZoomOut } from "lucide-react";
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -24,7 +24,8 @@ function FileViewerContent() {
   const useGoogleViewer = !isActuallyPdf || isPptx || isDoc;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showExitBtn, setShowExitBtn] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+  const [zoom, setZoom] = useState(100);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -47,14 +48,18 @@ function FileViewerContent() {
   }, []);
 
   const startHideTimer = useCallback(() => {
-    setShowExitBtn(true);
+    setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setShowExitBtn(false), 2000);
+    hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
   }, []);
 
   useEffect(() => {
     return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
   }, []);
+
+  const zoomIn = () => setZoom((z) => Math.min(z + 25, 300));
+  const zoomOut = () => setZoom((z) => Math.max(z - 25, 50));
+  const resetZoom = () => setZoom(100);
 
   if (!fileUrl) {
     return (
@@ -141,29 +146,70 @@ function FileViewerContent() {
           </button>
         )}
 
+        {/* ── Floating Zoom Controls (auto-hides with exit button) ── */}
+        {isFullscreen && (
+          <div
+            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[210] transition-all duration-500 ${
+              showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+            }`}
+          >
+            <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md rounded-2xl px-3 py-2 shadow-2xl border border-white/10">
+              <button
+                onClick={zoomOut}
+                className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
+                title="تصغير"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <button
+                onClick={resetZoom}
+                className="px-3 py-1.5 rounded-xl hover:bg-white/10 text-white text-xs font-bold transition-colors min-w-[50px]"
+              >
+                {zoom}%
+              </button>
+              <button
+                onClick={zoomIn}
+                className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
+                title="تكبير"
+              >
+                <ZoomIn size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Content Area ── */}
-        <div className={`flex-1 overflow-hidden min-h-0 ${
+        <div className={`flex-1 overflow-auto min-h-0 ${
           isFullscreen ? "bg-stone-900" : "bg-white rounded-2xl shadow-sm border border-amber-200/70"
         }`}>
-          {useGoogleViewer ? (
-            /* Google Docs Viewer for non-PDF files (PPTX, DOCX, etc.) */
-            <div className="w-full h-full overflow-hidden relative">
-              <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-                title={title}
-                className="w-full absolute top-0 left-0 border-0"
-                style={{ height: "calc(100% + 100px)" }}
+          <div
+            style={{ 
+              transform: `scale(${zoom / 100})`, 
+              transformOrigin: "top center",
+              width: `${10000 / zoom}%`,
+              minHeight: "100%",
+            }}
+          >
+            {useGoogleViewer ? (
+              /* Google Docs Viewer for non-PDF files (PPTX, DOCX, etc.) */
+              <div className="w-full relative" style={{ height: `${100 * 100 / zoom}vh` }}>
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                  title={title}
+                  className="w-full absolute top-0 left-0 border-0"
+                  style={{ height: "calc(100% + 100px)" }}
+                />
+              </div>
+            ) : (
+              /* Browser's native PDF viewer via embed */
+              <embed
+                src={fileUrl}
+                type="application/pdf"
+                className="w-full"
+                style={{ border: "none", height: `${100 * 100 / zoom}vh` }}
               />
-            </div>
-          ) : (
-            /* Browser's native PDF viewer via embed — cleanest possible */
-            <embed
-              src={fileUrl}
-              type="application/pdf"
-              className="w-full h-full"
-              style={{ border: "none" }}
-            />
-          )}
+            )}
+          </div>
         </div>
       </div>
     </PageWrapper>
