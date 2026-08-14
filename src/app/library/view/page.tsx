@@ -108,6 +108,7 @@ function FileViewerContent() {
   const [pdfLoading, setPdfLoading] = useState(true);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -353,7 +354,7 @@ function FileViewerContent() {
               : "bg-stone-200 rounded-2xl shadow-sm border border-amber-200/70 p-4"
           }`}
         >
-          {isPdf ? (
+          {isPdf && !useFallback ? (
             /* ── Native PDF Renderer (Continuous Scrolling) ── */
             <div className="flex flex-col items-center max-w-5xl mx-auto">
               {pdfLoading && (
@@ -370,7 +371,14 @@ function FileViewerContent() {
                   </div>
                   <h3 className="font-bold text-stone-800 text-base mb-1">لم يتم تحميل الملف</h3>
                   <p className="text-xs text-stone-500 mb-4 max-w-xs">{pdfError}</p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap justify-center">
+                    <button
+                      onClick={() => setUseFallback(true)}
+                      className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all"
+                    >
+                      <FileText size={14} />
+                      استخدام العارض البديل
+                    </button>
                     <a
                       href={fileUrl}
                       download
