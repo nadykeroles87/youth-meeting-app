@@ -13,15 +13,13 @@ function FileViewerContent() {
   const title = searchParams.get("title") || "عرض الملف";
   const fileType = searchParams.get("type") || "pdf";
 
-  // Check actual file extension, not just the type param
+  // Check file type from both the 'type' parameter and the URL extension
   const urlLower = fileUrl.toLowerCase();
-  const isActuallyPdf = urlLower.includes(".pdf");
-  const isPptx = urlLower.includes(".pptx") || urlLower.includes(".ppt");
-  const isDoc = urlLower.includes(".docx") || urlLower.includes(".doc");
+  const isPdf = fileType === "pdf" || urlLower.includes(".pdf");
   
-  // Use Google Docs viewer for non-PDF files (pptx, docx, etc.)
+  // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.)
   // Use browser's native embed for actual PDF files
-  const useGoogleViewer = !isActuallyPdf || isPptx || isDoc;
+  const useOfficeViewer = !isPdf;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
@@ -190,14 +188,13 @@ function FileViewerContent() {
               minHeight: "100%",
             }}
           >
-            {useGoogleViewer ? (
-              /* Google Docs Viewer for non-PDF files (PPTX, DOCX, etc.) */
+            {useOfficeViewer ? (
+              /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
               <div className="w-full relative" style={{ height: `${100 * 100 / zoom}vh` }}>
                 <iframe
-                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`}
                   title={title}
-                  className="w-full absolute top-0 left-0 border-0"
-                  style={{ height: "calc(100% + 100px)" }}
+                  className="w-full h-full absolute top-0 left-0 border-0"
                 />
               </div>
             ) : (
