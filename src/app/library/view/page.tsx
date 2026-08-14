@@ -215,7 +215,9 @@ function FileViewerContent() {
       setPdfLoading(false);
     } catch (err: any) {
       console.error("Failed to load PDF:", err);
-      setPdfError("فشل تحميل ملف الـ PDF. تأكد من صحة الرابط أو جرّب تحميل الملف.");
+      // Automatically switch to fallback instead of showing an error
+      setUseFallback(true);
+      setPdfError("فشل تحميل ملف الـ PDF.");
       setPdfLoading(false);
     }
   };
@@ -433,13 +435,34 @@ function FileViewerContent() {
               ))}
             </div>
           ) : (
-            /* ── Non-PDF: use Google Docs Viewer as fallback ── */
-            <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-              title={title}
-              className="w-full h-full border-0 bg-white rounded-xl"
-              style={{ minHeight: "100%" }}
-            />
+            /* ── Non-PDF or Fallback: use Google Docs Viewer and crop the bottom toolbar ── */
+            <div className="w-full h-full overflow-hidden bg-white rounded-xl relative">
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+                title={title}
+                className="w-full absolute top-0 left-0 border-0"
+                style={{ height: "calc(100% + 55px)" }} // Crops out the bottom Google Docs toolbar
+              />
+              
+              {/* Fullscreen exit button specifically for fallback/non-pdf mode */}
+              {isFullscreen && (
+                <div 
+                  onMouseEnter={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
+                  onMouseLeave={resetHideTimer}
+                  className={`absolute top-0 left-0 w-32 h-32 z-50 flex items-start justify-start p-4 transition-all duration-500`}
+                >
+                  <button
+                    onClick={toggleFullscreen}
+                    className={`p-3 rounded-full bg-black/60 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all duration-500 ${
+                      showControls ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-4 pointer-events-none"
+                    }`}
+                    title="الخروج من ملء الشاشة"
+                  >
+                    <Minimize size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
