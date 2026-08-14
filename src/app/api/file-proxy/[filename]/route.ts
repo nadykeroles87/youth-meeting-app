@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = 'edge';
+
 // Proxy route to fetch files from external URLs (avoids CORS issues and forces correct extensions for viewers)
 export async function GET(
   req: NextRequest,
@@ -31,9 +33,9 @@ export async function GET(
       );
     }
 
-    const buffer = await response.arrayBuffer();
-
-    return new NextResponse(buffer, {
+    // Stream the response directly without buffering it into memory
+    // This dramatically improves performance for large files like PPTX
+    return new NextResponse(response.body, {
       status: 200,
       headers: {
         "Content-Type": contentType,
