@@ -35,16 +35,6 @@ function FileViewerContent() {
     }
   }, []);
 
-  useEffect(() => {
-    const handler = () => {
-      const isFull = !!document.fullscreenElement;
-      setIsFullscreen(isFull);
-      if (isFull) startHideTimer();
-    };
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
-
   const startHideTimer = useCallback(() => {
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -52,8 +42,19 @@ function FileViewerContent() {
   }, []);
 
   useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      startHideTimer();
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, [startHideTimer]);
+
+  useEffect(() => {
+    // Start hide timer initially
+    startHideTimer();
     return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
-  }, []);
+  }, [startHideTimer]);
 
   const zoomIn = () => setZoom((z) => Math.min(z + 25, 300));
   const zoomOut = () => setZoom((z) => Math.max(z - 25, 50));
@@ -83,9 +84,9 @@ function FileViewerContent() {
     <PageWrapper>
       <div
         ref={viewerContainerRef}
-        onMouseMove={isFullscreen ? startHideTimer : undefined}
-        onTouchStart={isFullscreen ? startHideTimer : undefined}
-        className={`flex flex-col ${
+        onMouseMove={startHideTimer}
+        onTouchStart={startHideTimer}
+        className={`flex flex-col relative overflow-hidden ${
           isFullscreen
             ? "fixed inset-0 z-[200] bg-stone-900 h-screen w-screen"
             : "h-[calc(100vh-2rem)] lg:h-[calc(100vh-4rem)]"
@@ -136,7 +137,7 @@ function FileViewerContent() {
           <button
             onClick={toggleFullscreen}
             className={`fixed top-4 left-4 z-[210] p-2.5 rounded-full bg-black/50 hover:bg-black/90 text-white shadow-xl backdrop-blur-sm border border-white/20 transition-all duration-500 ${
-              showExitBtn ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+              showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
             }`}
             title="الخروج من ملء الشاشة"
           >
@@ -144,37 +145,35 @@ function FileViewerContent() {
           </button>
         )}
 
-        {/* ── Floating Zoom Controls (auto-hides with exit button) ── */}
-        {isFullscreen && (
-          <div
-            className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[210] transition-all duration-500 ${
-              showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-            }`}
-          >
-            <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md rounded-2xl px-3 py-2 shadow-2xl border border-white/10">
-              <button
-                onClick={zoomOut}
-                className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
-                title="تصغير"
-              >
-                <ZoomOut size={18} />
-              </button>
-              <button
-                onClick={resetZoom}
-                className="px-3 py-1.5 rounded-xl hover:bg-white/10 text-white text-xs font-bold transition-colors min-w-[50px]"
-              >
-                {zoom}%
-              </button>
-              <button
-                onClick={zoomIn}
-                className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
-                title="تكبير"
-              >
-                <ZoomIn size={18} />
-              </button>
-            </div>
+        {/* ── Floating Zoom Controls (auto-hides) ── */}
+        <div
+          className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[210] transition-all duration-500 ${
+            showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md rounded-2xl px-3 py-2 shadow-2xl border border-white/10">
+            <button
+              onClick={zoomOut}
+              className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
+              title="تصغير"
+            >
+              <ZoomOut size={18} />
+            </button>
+            <button
+              onClick={resetZoom}
+              className="px-3 py-1.5 rounded-xl hover:bg-white/10 text-white text-xs font-bold transition-colors min-w-[50px]"
+            >
+              {zoom}%
+            </button>
+            <button
+              onClick={zoomIn}
+              className="p-2 rounded-xl hover:bg-white/10 text-white transition-colors"
+              title="تكبير"
+            >
+              <ZoomIn size={18} />
+            </button>
           </div>
-        )}
+        </div>
 
         {/* ── Content Area ── */}
         <div className={`flex-1 overflow-auto min-h-0 ${
