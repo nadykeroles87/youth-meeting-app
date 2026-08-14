@@ -5,6 +5,7 @@ import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
 import { UserSearch, Phone, AlertTriangle, Clock, ChevronLeft, Users, UserCheck } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Servant = { id: number; name: string };
 
@@ -21,36 +22,27 @@ type AbsentMember = {
 
 export default function FollowupPage() {
   const { user } = useAuth();
-  const [absentMembers, setAbsentMembers] = useState<AbsentMember[]>([]);
-  const [servants, setServants] = useState<Servant[]>([]);
   const [selectedServant, setSelectedServant] = useState<string>("");
-  const [loading, setLoading] = useState(true);
   const [weeks, setWeeks] = useState(2);
 
-  const fetchServants = async () => {
-    const res = await fetch("/api/servants");
-    const data = await res.json();
-    setServants(data);
-  };
+  const { data: servants } = useOfflineCache<Servant[]>({
+    cacheKey: "followup_servants",
+    fetchFn: async () => {
+      const res = await fetch("/api/servants");
+      return await res.json();
+    },
+  });
 
-  const fetchAbsent = async () => {
-    setLoading(true);
-    const params = new URLSearchParams();
-    params.set("absentWeeks", String(weeks));
-    if (selectedServant) params.set("servantId", selectedServant);
-    const res = await fetch(`/api/followup?${params}`);
-    const data = await res.json();
-    setAbsentMembers(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchServants();
-  }, []);
-
-  useEffect(() => {
-    fetchAbsent();
-  }, [weeks, selectedServant]);
+  const { data: absentMembers, loading } = useOfflineCache<AbsentMember[]>({
+    cacheKey: `followup_absent_${weeks}_${selectedServant}`,
+    fetchFn: async () => {
+      const params = new URLSearchParams();
+      params.set("absentWeeks", String(weeks));
+      if (selectedServant) params.set("servantId", selectedServant);
+      const res = await fetch(`/api/followup?${params}`);
+      return await res.json();
+    },
+  });
 
   const urgencyColor = (days: number | null) => {
     if (!days) return "bg-red-100 text-red-700 border-red-200";
@@ -123,7 +115,7 @@ export default function FollowupPage() {
                 className="w-full border border-amber-200 rounded-xl px-3 py-2 text-xs text-stone-700 bg-white outline-none focus:border-amber-500"
               >
                 <option value="">كل الخدام (جميع المجموعات)</option>
-                {servants.map((s) => (
+                {(servants || []).map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
@@ -138,7 +130,7 @@ export default function FollowupPage() {
           </div>
           <div>
             <p className="text-amber-200 text-sm">عدد الشباب المحتاجين افتقاد</p>
-            <p className="text-3xl font-black">{absentMembers.length}</p>
+            <p className="text-3xl font-black">{(absentMembers || []).length}</p>
             <p className="text-amber-300 text-xs mt-1">
               شاب/ة غائب/ة أكثر من {weeks === 1 ? "أسبوع" : weeks === 2 ? "أسبوعين" : `${weeks} أسابيع`}
             </p>
@@ -152,7 +144,7 @@ export default function FollowupPage() {
               <div key={i} className="bg-white rounded-2xl h-20 animate-pulse" />
             ))}
           </div>
-        ) : absentMembers.length === 0 ? (
+        ) : (absentMembers || []).length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <Users size={60} className="mx-auto text-emerald-400 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">🎉 ممتـاز!</h3>
@@ -162,7 +154,7 @@ export default function FollowupPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {absentMembers.map((member) => (
+            {(absentMembers || []).map((member) => (
               <div
                 key={member.id}
                 className="bg-white rounded-2xl shadow-sm border border-amber-100 hover:border-amber-300 transition-all overflow-hidden"

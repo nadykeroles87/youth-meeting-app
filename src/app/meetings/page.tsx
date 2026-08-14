@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
 import { CalendarDays, Plus, Users, ChevronLeft, MapPin, Mic, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Meeting = {
   id: number;
@@ -24,21 +24,16 @@ const monthNames = [
 ];
 
 export default function MeetingsPage() {
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [loading, setLoading] = useState(true);
   const { role } = useAuth();
   const isServant = role === "servant";
 
-  const fetchMeetings = async () => {
-    const res = await fetch("/api/meetings");
-    const data = await res.json();
-    setMeetings(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMeetings();
-  }, []);
+  const { data: meetings, loading, refresh: fetchMeetings } = useOfflineCache<Meeting[]>({
+    cacheKey: "meetings",
+    fetchFn: async () => {
+      const res = await fetch("/api/meetings");
+      return await res.json();
+    },
+  });
 
   const handleDelete = async (id: number) => {
     if (!confirm("هل أنت متأكد من حذف هذا الاجتماع؟")) return;
@@ -56,7 +51,7 @@ export default function MeetingsPage() {
               <CalendarDays size={24} className="text-amber-600" />
               الاجتماعات
             </h1>
-            <p className="text-stone-500 text-sm mt-1">إجمالي {meetings.length} اجتماع</p>
+            <p className="text-stone-500 text-sm mt-1">إجمالي {(meetings || []).length} اجتماع</p>
           </div>
           {isServant && (
             <Link
@@ -76,7 +71,7 @@ export default function MeetingsPage() {
               <div key={i} className="bg-white rounded-2xl p-5 h-28 animate-pulse" />
             ))}
           </div>
-        ) : meetings.length === 0 ? (
+        ) : (meetings || []).length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <CalendarDays size={60} className="mx-auto text-amber-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد اجتماعات</h3>
@@ -97,7 +92,7 @@ export default function MeetingsPage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {meetings.map((meeting) => {
+            {(meetings || []).map((meeting) => {
               const date = new Date(meeting.meetingDate);
               return (
                 <div

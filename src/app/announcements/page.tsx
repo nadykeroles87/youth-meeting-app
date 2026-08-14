@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import { Bell, Plus, Trash2, Pin, X, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Announcement = {
   id: number;
@@ -17,21 +18,19 @@ type Announcement = {
 export default function AnnouncementsPage() {
   const { role } = useAuth();
   const isServant = role === "servant";
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", content: "", imageUrl: "", isPinned: false });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
 
-  const fetchAnnouncements = async () => {
-    const res = await fetch("/api/announcements");
-    setAnnouncements(await res.json());
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchAnnouncements(); }, []);
+  const { data: announcements, loading, refresh: fetchAnnouncements } = useOfflineCache<Announcement[]>({
+    cacheKey: "announcements",
+    fetchFn: async () => {
+      const res = await fetch("/api/announcements");
+      return await res.json();
+    },
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +79,9 @@ export default function AnnouncementsPage() {
     fetchAnnouncements();
   };
 
-  const pinned = announcements.filter((a) => a.isPinned);
-  const regular = announcements.filter((a) => !a.isPinned);
+  const safeAnnouncements = announcements || [];
+  const pinned = safeAnnouncements.filter((a) => a.isPinned);
+  const regular = safeAnnouncements.filter((a) => !a.isPinned);
 
   return (
     <PageWrapper>
@@ -92,7 +92,7 @@ export default function AnnouncementsPage() {
               <Bell size={24} className="text-amber-600" />
               الإعلانات
             </h1>
-            <p className="text-stone-500 text-sm mt-1">{announcements.length} إعلان</p>
+            <p className="text-stone-500 text-sm mt-1">{safeAnnouncements.length} إعلان</p>
           </div>
           {isServant && (
           <button
@@ -214,7 +214,7 @@ export default function AnnouncementsPage() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="bg-white h-28 rounded-2xl animate-pulse" />)}
           </div>
-        ) : announcements.length === 0 ? (
+        ) : safeAnnouncements.length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <Bell size={60} className="mx-auto text-amber-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد إعلانات</h3>

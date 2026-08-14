@@ -5,6 +5,7 @@ import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
 import { CheckSquare, QrCode, Search, CalendarDays, X, CheckCircle, AlertCircle, ArrowLeft, Camera } from "lucide-react";
 import { Scanner } from '@yudiel/react-qr-scanner';
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Meeting = {
   id: number;
@@ -28,37 +29,40 @@ const monthNames = [
 ];
 
 export default function AttendancePage() {
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
   const [qrInput, setQrInput] = useState("");
-  const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [recentAttendees, setRecentAttendees] = useState<{ name: string; time: string }[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+  const { data: meetingsData, loading: loadingMeetings } = useOfflineCache<Meeting[]>({
+    cacheKey: "attendance_meetings",
+    fetchFn: async () => {
+      const res = await fetch("/api/meetings");
+      return await res.json();
+    },
+  });
+
+  const { data: allMembersData } = useOfflineCache<Member[]>({
+    cacheKey: "attendance_members",
+    fetchFn: async () => {
+      const res = await fetch("/api/members");
+      return await res.json();
+    },
+  });
+
+  const meetings = (meetingsData || []).slice(0, 10);
+  const allMembers = allMembersData || [];
+
+  // Auto-select most recent meeting
   useEffect(() => {
-    fetchMeetings();
-    fetchMembers();
-  }, []);
-
-  const fetchMeetings = async () => {
-    const res = await fetch("/api/meetings");
-    const data = await res.json();
-    setMeetings(data.slice(0, 10));
-    // Auto-select most recent
-    if (data.length > 0) setSelectedMeeting(data[0]);
-    setLoadingMeetings(false);
-  };
-
-  const fetchMembers = async () => {
-    const res = await fetch("/api/members");
-    const data = await res.json();
-    setAllMembers(data);
-  };
+    if (meetings.length > 0 && !selectedMeeting) {
+      setSelectedMeeting(meetings[0]);
+    }
+  }, [meetingsData]);
 
   useEffect(() => {
     if (!searchQuery) {

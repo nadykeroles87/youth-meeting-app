@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import { useAuth } from "@/components/AuthProvider";
 import {
   Shield, UserPlus, Users, Phone, Mail, Trash2,
   ChevronDown, Loader2, X, Check, Crown
 } from "lucide-react";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Servant = {
   id: number;
@@ -37,8 +38,6 @@ export default function ServantsPage() {
   // Only servants with role "admin" can access this page
   const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
 
-  const [servants, setServants] = useState<Servant[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -48,18 +47,14 @@ export default function ServantsPage() {
     role: "servant" as "admin" | "servant" | "viewer",
   });
 
-  const fetchServants = async () => {
-    try {
+  const { data: servants, loading, refresh: fetchServants } = useOfflineCache<Servant[]>({
+    cacheKey: "servants_list",
+    fetchFn: async () => {
       const res = await fetch("/api/servants");
-      if (res.ok) setServants(await res.json());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchServants();
-  }, []);
+      if (res.ok) return await res.json();
+      throw new Error("Failed to load servants");
+    },
+  });
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,14 +234,14 @@ export default function ServantsPage() {
           <div className="flex items-center justify-center py-16">
             <Loader2 size={32} className="animate-spin text-amber-400" />
           </div>
-        ) : servants.length === 0 ? (
+        ) : (servants || []).length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center border border-amber-100">
             <Users size={50} className="mx-auto text-amber-200 mb-4" />
             <p className="text-stone-500">لا يوجد خدام مسجلون بعد</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {servants.map((s) => (
+            {(servants || []).map((s) => (
               <div
                 key={s.id}
                 className="bg-white rounded-2xl border border-amber-100 p-4 flex items-center gap-4 hover:border-amber-300 transition-all shadow-sm"

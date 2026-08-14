@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
 import { Users, Plus, Search, Filter, Phone, QrCode, Trash2, ChevronLeft, X } from "lucide-react";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type Member = {
   id: number;
@@ -26,36 +27,51 @@ type Servant = {
 };
 
 export default function MembersPage() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [servants, setServants] = useState<Servant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterFamily, setFilterFamily] = useState("");
   const [filterGender, setFilterGender] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
+  const [members, setMembers] = useState<Member[]>([]);
+
+  const { data: servants } = useOfflineCache<Servant[]>({
+    cacheKey: "members_servants",
+    fetchFn: async () => {
+      const res = await fetch("/api/servants");
+      return await res.json();
+    },
+  });
 
   const fetchMembers = async () => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (filterFamily) params.set("servantId", filterFamily);
-    if (filterStatus) params.set("status", filterStatus);
-    const res = await fetch(`/api/members?${params}`);
-    const data = await res.json();
-    let filtered = data;
-    if (filterGender) filtered = data.filter((m: Member) => m.gender === filterGender);
-    setMembers(filtered);
-    setLoading(false);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (filterFamily) params.set("servantId", filterFamily);
+      if (filterStatus) params.set("status", filterStatus);
+      const res = await fetch(`/api/members?${params}`);
+      const data = await res.json();
+      let filtered = data;
+      if (filterGender) filtered = data.filter((m: Member) => m.gender === filterGender);
+      setMembers(filtered);
+      // Cache members for offline
+      try {
+        localStorage.setItem("offline_cache_members", JSON.stringify({ data: filtered, timestamp: Date.now() }));
+      } catch (e) { /* ignore */ }
+    } catch (error) {
+      // Load from cache if offline
+      try {
+        const cached = localStorage.getItem("offline_cache_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          let filtered = parsed.data;
+          if (filterGender) filtered = filtered.filter((m: Member) => m.gender === filterGender);
+          setMembers(filtered);
+        }
+      } catch (e) { /* ignore */ }
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const fetchServants = async () => {
-    const res = await fetch("/api/servants");
-    const data = await res.json();
-    setServants(data);
-  };
-
-  useEffect(() => {
-    fetchServants();
-  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -122,7 +138,7 @@ export default function MembersPage() {
               className="border border-amber-200 rounded-xl px-3 py-2.5 text-sm text-stone-700 outline-none focus:border-amber-500 transition-colors bg-white"
             >
               <option value="">كل الخدام المسؤولين</option>
-              {servants.map((s) => (
+              {(servants || []).map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>

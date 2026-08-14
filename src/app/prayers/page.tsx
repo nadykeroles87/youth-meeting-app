@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import Link from "next/link";
 import { Heart, Plus, CheckCircle, Clock, Lock, User } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type PrayerRequest = {
   id: number;
@@ -19,16 +19,14 @@ type PrayerRequest = {
 export default function PrayersPage() {
   const { user, role } = useAuth();
   const isServant = role === "servant";
-  const [prayers, setPrayers] = useState<PrayerRequest[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  const fetchPrayers = async () => {
-    const res = await fetch("/api/prayer-requests");
-    setPrayers(await res.json());
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchPrayers(); }, []);
+  const { data: prayers, loading, refresh: fetchPrayers } = useOfflineCache<PrayerRequest[]>({
+    cacheKey: "prayers",
+    fetchFn: async () => {
+      const res = await fetch("/api/prayer-requests");
+      return await res.json();
+    },
+  });
 
   const handleTogglePrayed = async (id: number, current: boolean) => {
     if (!isServant) return; // Only servants can mark as prayed
@@ -40,8 +38,8 @@ export default function PrayersPage() {
     fetchPrayers();
   };
 
-  const pending = prayers.filter((p) => !p.isPrayed);
-  const prayed = prayers.filter((p) => p.isPrayed);
+  const pending = (prayers || []).filter((p) => !p.isPrayed);
+  const prayed = (prayers || []).filter((p) => p.isPrayed);
 
   return (
     <PageWrapper>
@@ -81,7 +79,7 @@ export default function PrayersPage() {
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <div key={i} className="bg-white h-24 rounded-2xl animate-pulse" />)}
           </div>
-        ) : prayers.length === 0 ? (
+        ) : (prayers || []).length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center shadow-sm border border-amber-100">
             <Heart size={60} className="mx-auto text-red-200 mb-4" />
             <h3 className="text-xl font-bold text-stone-700 mb-2">لا توجد طلبات صلاة</h3>

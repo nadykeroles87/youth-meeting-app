@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import PageWrapper from "@/components/PageWrapper";
 import SeedButton from "@/components/SeedButton";
 import Link from "next/link";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 import {
   Users,
   CalendarDays,
@@ -21,28 +22,16 @@ import MemberPortal from "@/components/MemberPortal";
 
 export default function HomePage() {
   const { user, role, isLoading: authLoading } = useAuth();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  const fetchStats = async () => {
-    try {
+  const { data, loading, refresh: fetchStats } = useOfflineCache({
+    cacheKey: "stats",
+    fetchFn: async () => {
       const res = await fetch("/api/stats");
-      if (res.ok) {
-        const stats = await res.json();
-        setData(stats);
-      }
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchStats();
-    }
-  }, [user]);
+      if (res.ok) return await res.json();
+      throw new Error("Failed to load stats");
+    },
+    enabled: !!user,
+  });
 
   if (authLoading) {
     return (

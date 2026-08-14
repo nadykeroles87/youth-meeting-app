@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
 import {
@@ -8,6 +8,7 @@ import {
   Trash2, Search, Loader2, X, UploadCloud, FileUp, Eye, ExternalLink
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 
 type MediaItem = {
   id: number;
@@ -25,8 +26,6 @@ export default function LibraryPage() {
   const isServant = role === "servant";
   const router = useRouter();
 
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -47,20 +46,14 @@ export default function LibraryPage() {
     category: "general",
   });
 
-  const fetchItems = async () => {
-    try {
+  const { data: items, loading, refresh: fetchItems } = useOfflineCache<MediaItem[]>({
+    cacheKey: "library",
+    fetchFn: async () => {
       const res = await fetch("/api/media");
-      if (res.ok) {
-        setItems(await res.json());
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchItems();
-  }, []);
+      if (res.ok) return await res.json();
+      throw new Error("Failed to load media");
+    },
+  });
 
   const handleAddMedia = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +123,8 @@ export default function LibraryPage() {
     fetchItems();
   };
 
-  const filteredItems = items.filter((item) => {
+  const safeItems = items || [];
+  const filteredItems = safeItems.filter((item) => {
     const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(search.toLowerCase()));
     const matchesType = !filterType || item.fileType === filterType;
@@ -197,7 +191,7 @@ export default function LibraryPage() {
                 !filterType ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-900 border border-amber-200"
               }`}
             >
-              كل الملفات ({items.length})
+              كل الملفات ({safeItems.length})
             </button>
             <button
               onClick={() => setFilterType("pdf")}
