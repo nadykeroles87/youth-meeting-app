@@ -18,6 +18,7 @@ function FileViewerContent() {
   const isPdf = fileType === "pdf" || fileUrl.toLowerCase().endsWith(".pdf");
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExitBtn, setShowExitBtn] = useState(true);
   const viewerRef = useRef<HTMLDivElement>(null);
 
   // Fullscreen toggle
@@ -41,6 +42,18 @@ function FileViewerContent() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  // Auto-hide the exit button after a delay
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isFullscreen) {
+      setShowExitBtn(true);
+      timeout = setTimeout(() => {
+        setShowExitBtn(false);
+      }, 3000);
+    }
+    return () => clearTimeout(timeout);
+  }, [isFullscreen]);
 
   if (!fileUrl) {
     return (
@@ -154,15 +167,26 @@ function FileViewerContent() {
             />
           )}
 
-          {/* ── Fullscreen exit button (floating) ── */}
+          {/* ── Fullscreen exit area (auto-hide) ── */}
           {isFullscreen && (
-            <button
-              onClick={toggleFullscreen}
-              className="absolute top-4 left-4 z-[210] p-2.5 rounded-full bg-black/40 hover:bg-black/80 text-white/80 hover:text-white transition-all shadow-lg backdrop-blur-sm border border-white/10"
-              title="الخروج من ملء الشاشة"
+            <div 
+              className="absolute top-0 left-0 w-32 h-32 z-[210] flex items-start justify-start p-4"
+              onMouseEnter={() => setShowExitBtn(true)}
+              onMouseLeave={() => setShowExitBtn(false)}
+              onClick={() => setShowExitBtn(true)}
             >
-              <Minimize size={20} />
-            </button>
+              <button
+                onClick={toggleFullscreen}
+                className={`p-3 rounded-full bg-black/60 hover:bg-black/90 text-white transition-all duration-500 shadow-xl backdrop-blur-sm border border-white/20 ${
+                  showExitBtn 
+                    ? "opacity-100 translate-y-0 pointer-events-auto" 
+                    : "opacity-0 -translate-y-4 pointer-events-none"
+                }`}
+                title="الخروج من ملء الشاشة"
+              >
+                <Minimize size={20} />
+              </button>
+            </div>
           )}
         </div>
 
