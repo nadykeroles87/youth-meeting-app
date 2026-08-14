@@ -11,9 +11,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 
 interface PdfViewerProps {
   fileUrl: string;
+  onError?: () => void;
 }
 
-export default function PdfViewer({ fileUrl }: PdfViewerProps) {
+export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [scale, setScale] = useState<number>(1.0);
@@ -74,6 +75,10 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
       <Document
         file={fileUrl}
         onLoadSuccess={onDocumentLoadSuccess}
+        onLoadError={(error) => {
+          console.error("PDF load error:", error);
+          if (onError) onError();
+        }}
         loading={
           <div className="flex flex-col items-center justify-center py-32">
             <Loader2 size={36} className="animate-spin text-amber-600 mb-3" />

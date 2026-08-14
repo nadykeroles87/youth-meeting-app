@@ -25,12 +25,14 @@ function FileViewerContent() {
   const title = searchParams.get("title") || "عرض الملف";
   const fileType = searchParams.get("type") || "pdf";
 
+  const [pdfFailed, setPdfFailed] = useState(false);
+
   // Check file type from both the 'type' parameter and the URL extension
   const urlLower = fileUrl.toLowerCase();
   const isPdf = fileType === "pdf" || urlLower.includes(".pdf");
   
-  // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.)
-  const useOfficeViewer = !isPdf;
+  // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.), or if the PDF viewer fails to load it (e.g. wrong type selected)
+  const useOfficeViewer = !isPdf || pdfFailed;
 
   // Determine an appropriate extension for the proxy URL
   let proxyExtension = ".pdf";
@@ -179,7 +181,7 @@ function FileViewerContent() {
             />
           ) : (
             /* Custom React-PDF Viewer for PDF files */
-            <PdfViewer fileUrl={absoluteProxyUrl} />
+            <PdfViewer fileUrl={absoluteProxyUrl} onError={() => setPdfFailed(true)} />
           )}
         </div>
       </div>
