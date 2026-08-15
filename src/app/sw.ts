@@ -27,7 +27,6 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    ...defaultCache,
     // Cache API routes with StaleWhileRevalidate strategy
     // This ensures instant loading from cache while offline, and background updates when online.
     {
@@ -58,6 +57,7 @@ const serwist = new Serwist({
         ],
       }),
     },
+    ...defaultCache,
     // Cache uploaded images/files
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/uploads/"),

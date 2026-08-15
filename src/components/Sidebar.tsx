@@ -104,6 +104,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 active

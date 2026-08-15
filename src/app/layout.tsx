@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import InstallPWA from "@/components/InstallPWA";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import BackgroundSyncer from "@/components/BackgroundSyncer";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <AuthProvider>{children}</AuthProvider>
         <OfflineIndicator />
         <InstallPWA />
+        <BackgroundSyncer />
         <script
           dangerouslySetInnerHTML={{
             __html: `
