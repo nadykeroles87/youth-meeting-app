@@ -172,7 +172,26 @@ function FileViewerContent() {
         <div className={`flex-1 overflow-auto min-h-0 ${
           isFullscreen ? "bg-stone-900" : "bg-white rounded-2xl shadow-sm border border-amber-200/70"
         }`}>
-          {useOfficeViewer ? (
+          {useOfficeViewer && typeof navigator !== 'undefined' && !navigator.onLine ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 rounded-2xl p-6 text-center">
+                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                    <FileText size={32} className="text-amber-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-stone-800 mb-2">تعذر عرض الملف</h3>
+                  <p className="text-stone-500 mb-6 max-w-sm text-sm leading-relaxed">
+                    أنت غير متصل بالإنترنت حالياً. ملفات الوورد والباوربوينت تحتاج إلى اتصال بالإنترنت لعرضها مباشرة. يرجى تحميل الملف لفتحه على جهازك.
+                  </p>
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/30"
+                  >
+                    <Download size={18} />
+                    تحميل الملف
+                  </a>
+                </div>
+              ) : useOfficeViewer ? (
             /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
             <iframe
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`}
