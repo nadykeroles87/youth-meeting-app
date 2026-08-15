@@ -43,10 +43,18 @@ const serwist = new Serwist({
     },
     // Cache all HTML pages and RSC payloads with StaleWhileRevalidate for offline access
     {
-      matcher: ({ request, url }: { request: Request; url: URL }) => 
-        request.headers.get("RSC") === "1" || 
-        request.headers.get("Content-Type")?.includes("text/html") ||
-        url.pathname.startsWith("/"),
+      matcher: ({ request, url }: { request: Request; url: URL }) => {
+        const isAppPage = [
+          "/", "/library", "/meetings", "/members", 
+          "/followup", "/attendance", "/prayers", 
+          "/announcements", "/servants", "/agpeya"
+        ].includes(url.pathname);
+        
+        return isAppPage || 
+               request.mode === "navigate" || 
+               request.headers.get("RSC") === "1" || 
+               request.headers.get("Accept")?.includes("text/html");
+      },
       handler: new StaleWhileRevalidate({
         cacheName: "pages-cache",
         plugins: [

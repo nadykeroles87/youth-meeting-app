@@ -16,6 +16,19 @@ const ENDPOINTS_TO_CACHE = [
   { url: "/api/followup?absentWeeks=2", key: "offline_cache_followup_absent_2_" }, // Default followup list
 ];
 
+const PAGES_TO_CACHE = [
+  "/",
+  "/library",
+  "/meetings",
+  "/members",
+  "/followup",
+  "/attendance",
+  "/prayers",
+  "/announcements",
+  "/servants",
+  "/agpeya"
+];
+
 export default function BackgroundSyncer() {
   useEffect(() => {
     // Only run this on the client side and if the browser is online
@@ -23,6 +36,7 @@ export default function BackgroundSyncer() {
 
     // Small delay to ensure this doesn't block the initial page load
     const timeoutId = setTimeout(() => {
+      // 1. Cache API endpoints data in localStorage
       ENDPOINTS_TO_CACHE.forEach(async ({ url, key }) => {
         try {
           const res = await fetch(url);
@@ -31,7 +45,17 @@ export default function BackgroundSyncer() {
             localStorage.setItem(key, JSON.stringify(data));
           }
         } catch (err) {
-          console.warn(`[BackgroundSyncer] Failed to prefetch ${url}`, err);
+          console.warn(`[BackgroundSyncer] Failed to prefetch data ${url}`, err);
+        }
+      });
+
+      // 2. Cache HTML pages via Service Worker interception
+      PAGES_TO_CACHE.forEach(async (url) => {
+        try {
+          // Fetching these will cause the Service Worker to intercept and store them in pages-cache
+          await fetch(url, { headers: { Accept: "text/html" } });
+        } catch (err) {
+          console.warn(`[BackgroundSyncer] Failed to prefetch page ${url}`, err);
         }
       });
     }, 5000); // 5 seconds after load
