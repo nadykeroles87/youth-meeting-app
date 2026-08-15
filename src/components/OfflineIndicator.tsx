@@ -14,6 +14,11 @@ export default function OfflineIndicator() {
       setIsOffline(true);
       setWasOffline(true);
       setVisible(true);
+      
+      // Auto-hide the offline banner after 3 seconds so it doesn't block the menu
+      setTimeout(() => {
+        setVisible(false);
+      }, 3000);
     };
 
     const handleOnline = () => {
@@ -21,13 +26,13 @@ export default function OfflineIndicator() {
       if (wasOffline) {
         setShowReconnected(true);
         setVisible(true);
-        // Hide the reconnected banner after 4 seconds
+        // Hide the reconnected banner after 3 seconds
         const timer = setTimeout(() => {
           setVisible(false);
           setTimeout(() => {
             setShowReconnected(false);
           }, 500); // wait for fade-out animation
-        }, 4000);
+        }, 3000);
         return () => clearTimeout(timer);
       }
     };
@@ -37,9 +42,7 @@ export default function OfflineIndicator() {
 
     // Check initial state
     if (!navigator.onLine) {
-      setIsOffline(true);
-      setWasOffline(true);
-      setVisible(true);
+      handleOffline();
     }
 
     return () => {
@@ -53,35 +56,33 @@ export default function OfflineIndicator() {
 
   return (
     <div
-      className={`fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-in-out pointer-events-none w-[90%] max-w-sm ${
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ease-in-out pointer-events-none ${
         visible
           ? "translate-y-0 opacity-100"
-          : "translate-y-10 opacity-0"
+          : "-translate-y-full opacity-0"
       }`}
     >
       {isOffline ? (
         /* ── Offline Banner ── */
-        <div className="bg-stone-900/95 backdrop-blur-md text-white shadow-2xl rounded-2xl border border-stone-700/50 pointer-events-auto">
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex-shrink-0">
-                <WifiOff size={16} className="text-amber-400" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-amber-200 leading-tight">
-                  لا يوجد اتصال
-                </span>
-                <span className="text-[10px] text-stone-400 leading-tight mt-0.5">
-                  وضع الأوفلاين نشط
-                </span>
-              </div>
+        <div className="bg-gradient-to-r from-stone-800 via-stone-900 to-stone-800 text-white shadow-2xl pointer-events-auto">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/30 flex-shrink-0">
+              <WifiOff size={16} className="text-amber-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold text-amber-200">
+                أنت غير متصل بالإنترنت
+              </p>
+              <p className="text-xs text-stone-400 mt-0.5">
+                يتم عرض آخر بيانات محفوظة • ستتحدث البيانات تلقائيًا عند الاتصال
+              </p>
             </div>
             <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
           </div>
         </div>
       ) : showReconnected ? (
         /* ── Reconnected Banner ── */
-        <div className="bg-emerald-600/95 backdrop-blur-md text-white shadow-2xl rounded-2xl border border-emerald-500/50 pointer-events-auto">
+        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-emerald-600 text-white shadow-2xl pointer-events-auto">
           <div className="px-4 py-3 flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 border border-white/30 flex-shrink-0">
               <Wifi size={16} className="text-white" />

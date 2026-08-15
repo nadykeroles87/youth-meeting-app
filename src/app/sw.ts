@@ -10,8 +10,19 @@ declare global {
 
 declare const self: WorkerGlobalScope;
 
+// Fix Windows backslash issue in precache manifest
+const precacheManifest = (self.__SW_MANIFEST || []).map((entry) => {
+  if (typeof entry === "string") {
+    return entry.replace(/\\/g, "/");
+  }
+  return {
+    ...entry,
+    url: entry.url.replace(/\\/g, "/"),
+  };
+});
+
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: precacheManifest,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
