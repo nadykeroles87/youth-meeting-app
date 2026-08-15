@@ -17,11 +17,11 @@ const serwist = new Serwist({
   navigationPreload: true,
   runtimeCaching: [
     ...defaultCache,
-    // Cache API routes with NetworkFirst strategy
-    // This means: try network first, fall back to cache if offline
+    // Cache API routes with StaleWhileRevalidate strategy
+    // This ensures instant loading from cache while offline, and background updates when online.
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/"),
-      handler: new NetworkFirst({
+      handler: new StaleWhileRevalidate({
         cacheName: "api-cache",
         plugins: [
           new ExpirationPlugin({
@@ -29,7 +29,22 @@ const serwist = new Serwist({
             maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
           }),
         ],
-        networkTimeoutSeconds: 10,
+      }),
+    },
+    // Cache all HTML pages and RSC payloads with StaleWhileRevalidate for offline access
+    {
+      matcher: ({ request, url }: { request: Request; url: URL }) => 
+        request.headers.get("RSC") === "1" || 
+        request.headers.get("Content-Type")?.includes("text/html") ||
+        url.pathname.startsWith("/"),
+      handler: new StaleWhileRevalidate({
+        cacheName: "pages-cache",
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 100,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          }),
+        ],
       }),
     },
     // Cache uploaded images/files
