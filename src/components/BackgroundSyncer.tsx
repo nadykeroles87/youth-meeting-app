@@ -80,7 +80,6 @@ export default function BackgroundSyncer() {
               if (m.imageUrl) {
                 await fetch(m.imageUrl, { mode: "no-cors" }).catch(() => {});
               }
-              await new Promise(r => setTimeout(r, 50)); // small delay to not block main thread
             }
           }
           
@@ -92,7 +91,6 @@ export default function BackgroundSyncer() {
               await fetch(`/api/members/${m.id}`).catch(() => {});
               await fetch(`/members/${m.id}`, { headers: { Accept: "text/html" } }).catch(() => {});
               await fetch(`/members/${m.id}`, { headers: { RSC: "1" } }).catch(() => {});
-              await new Promise(r => setTimeout(r, 50));
             }
           }
 
@@ -102,8 +100,15 @@ export default function BackgroundSyncer() {
             const media = await mediaRes.json();
             for (const item of media) {
               if (item.fileUrl) {
+                // Fetch direct URL
                 await fetch(item.fileUrl, { mode: "no-cors" }).catch(() => {});
-                await new Promise(r => setTimeout(r, 100));
+                
+                // If it's a PDF, also fetch the proxy URL that PdfViewer uses
+                const urlLower = item.fileUrl.toLowerCase();
+                if (urlLower.includes(".pdf")) {
+                  const proxyUrl = `/api/file-proxy/document.pdf?url=${encodeURIComponent(item.fileUrl)}`;
+                  await fetch(proxyUrl).catch(() => {});
+                }
               }
             }
           }
@@ -115,9 +120,21 @@ export default function BackgroundSyncer() {
             for (const a of announcements) {
               if (a.imageUrl) {
                 await fetch(a.imageUrl, { mode: "no-cors" }).catch(() => {});
-                await new Promise(r => setTimeout(r, 50));
               }
             }
+          }
+          
+          // Agpeya Slides
+          try {
+            const agpeyaFolders = ["baker", "third", "sixth", "ninth", "sunset", "noom", "midnight"];
+            const slideCounts = [79, 51, 52, 50, 44, 55, 159];
+            for (let i = 0; i < agpeyaFolders.length; i++) {
+              for (let j = 1; j <= slideCounts[i]; j++) {
+                await fetch(`/agpeya/${agpeyaFolders[i]}/Slide${j}.JPG`, { mode: "no-cors" }).catch(() => {});
+              }
+            }
+          } catch (err) {
+            console.warn("Agpeya prefetch failed", err);
           }
         } catch (err) {
           console.warn("[BackgroundSyncer] Failed to prefetch dynamic pages", err);
