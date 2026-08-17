@@ -19,11 +19,16 @@ const ENDPOINTS_TO_CACHE = [
 const PAGES_TO_CACHE = [
   "/",
   "/library",
+  "/library/view",
   "/meetings",
+  "/meetings/new",
   "/members",
+  "/members/new",
+  "/families",
   "/followup",
   "/attendance",
   "/prayers",
+  "/prayers/new",
   "/announcements",
   "/servants",
   "/agpeya"
@@ -31,11 +36,14 @@ const PAGES_TO_CACHE = [
 
 export default function BackgroundSyncer() {
   useEffect(() => {
-    // Only run this on the client side and if the browser is online
-    if (typeof window === "undefined" || !navigator.onLine) return;
+    // Only run this on the client side
+    if (typeof window === "undefined") return;
 
-    // Small delay to ensure this doesn't block the initial page load
-    const timeoutId = setTimeout(() => {
+    const runSync = () => {
+      if (!navigator.onLine) return;
+      
+      // Small delay to ensure this doesn't block the initial page load
+      setTimeout(() => {
       // 1. Cache API endpoints data in localStorage
       ENDPOINTS_TO_CACHE.forEach(async ({ url, key }) => {
         try {
@@ -52,15 +60,86 @@ export default function BackgroundSyncer() {
       // 2. Cache HTML pages via Service Worker interception
       PAGES_TO_CACHE.forEach(async (url) => {
         try {
-          // Fetching these will cause the Service Worker to intercept and store them in pages-cache
           await fetch(url, { headers: { Accept: "text/html" } });
         } catch (err) {
           console.warn(`[BackgroundSyncer] Failed to prefetch page ${url}`, err);
         }
       });
-    }, 5000); // 5 seconds after load
 
-    return () => clearTimeout(timeoutId);
+      // 3. Dynamically fetch and cache subpages (Meetings and Members) sequentially
+      const prefetchDynamicPages = async () => {
+        try {
+          // Meetings
+          const meetingsRes = await fetch("/api/meetings");
+          if (meetingsRes.ok) {
+            const meetings = await meetingsRes.json();
+            for (const m of meetings) {
+              await fetch(`/api/meetings/${m.id}`).catch(() => {});
+              await fetch(`/meetings/${m.id}`, { headers: { Accept: "text/html" } }).catch(() => {});
+              await fetch(`/meetings/${m.id}`, { headers: { RSC: "1" } }).catch(() => {});
+              if (m.imageUrl) {
+                await fetch(m.imageUrl, { mode: "no-cors" }).catch(() => {});
+              }
+              await new Promise(r => setTimeout(r, 50)); // small delay to not block main thread
+            }
+          }
+          
+          // Members
+          const membersRes = await fetch("/api/members");
+          if (membersRes.ok) {
+            const members = await membersRes.json();
+            for (const m of members) {
+              await fetch(`/api/members/${m.id}`).catch(() => {});
+              await fetch(`/members/${m.id}`, { headers: { Accept: "text/html" } }).catch(() => {});
+              await fetch(`/members/${m.id}`, { headers: { RSC: "1" } }).catch(() => {});
+              await new Promise(r => setTimeout(r, 50));
+            }
+          }
+
+          // Library Media Files
+          const mediaRes = await fetch("/api/media");
+          if (mediaRes.ok) {
+            const media = await mediaRes.json();
+            for (const item of media) {
+              if (item.fileUrl) {
+                await fetch(item.fileUrl, { mode: "no-cors" }).catch(() => {});
+                await new Promise(r => setTimeout(r, 100));
+              }
+            }
+          }
+
+          // Announcements
+          const announcementsRes = await fetch("/api/announcements");
+          if (announcementsRes.ok) {
+            const announcements = await announcementsRes.json();
+            for (const a of announcements) {
+              if (a.imageUrl) {
+                await fetch(a.imageUrl, { mode: "no-cors" }).catch(() => {});
+                await new Promise(r => setTimeout(r, 50));
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("[BackgroundSyncer] Failed to prefetch dynamic pages", err);
+        }
+      };
+      
+      prefetchDynamicPages();
+    }, 500);
+  };
+
+    // Run initial sync after 5 seconds
+    const timeoutId = setTimeout(runSync, 5000);
+
+    // Expose sync function to window so OfflineIndicator can trigger it
+    (window as any).triggerBackgroundSync = () => {
+      runSync();
+    };
+
+    return () => {
+      clearTimeout(timeoutId);
+      delete (window as any).triggerBackgroundSync;
+    };
   }, []);
 
   return null;

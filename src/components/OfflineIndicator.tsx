@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { WifiOff, Wifi, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function OfflineIndicator() {
   const [isOffline, setIsOffline] = useState(false);
   const [showReconnected, setShowReconnected] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
   const [visible, setVisible] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const handleOffline = () => {
@@ -26,11 +28,22 @@ export default function OfflineIndicator() {
       if (wasOffline) {
         setShowReconnected(true);
         setVisible(true);
+        
+        // تحديث الصفحة الحالية لجلب أحدث البيانات
+        router.refresh();
+        
+        // إعادة تشغيل المزامنة الخلفية إذا كانت متاحة
+        if (typeof window !== "undefined" && (window as any).triggerBackgroundSync) {
+          (window as any).triggerBackgroundSync();
+        }
+
         // Hide the reconnected banner after 3 seconds
         const timer = setTimeout(() => {
           setVisible(false);
           setTimeout(() => {
             setShowReconnected(false);
+            // Refresh the page completely to get fresh data for client components
+            window.location.reload();
           }, 500); // wait for fade-out animation
         }, 3000);
         return () => clearTimeout(timer);

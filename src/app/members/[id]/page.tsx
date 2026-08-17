@@ -45,11 +45,30 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [showQr, setShowQr] = useState(false);
 
   const fetchMember = async () => {
-    const res = await fetch(`/api/members/${id}`);
-    const data = await res.json();
-    setMember(data);
-    setEditForm(data);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/members/${id}`);
+      if (!res.ok) throw new Error("Network error");
+      const data = await res.json();
+      setMember(data);
+      setEditForm(data);
+    } catch (err) {
+      // Offline fallback: try to find the member in the bulk cache
+      try {
+        const cached = localStorage.getItem("offline_cache_members_servants") || localStorage.getItem("offline_cache_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const membersList = parsed.data || parsed;
+          const m = membersList.find((x: any) => x.id === parseInt(id));
+          if (m) {
+            // Fill missing arrays to prevent UI crash
+            setMember({ ...m, attendanceHistory: [], followupNotes: [], attendanceCount: 0 });
+            setEditForm(m);
+          }
+        }
+      } catch (e) { /* ignore */ }
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

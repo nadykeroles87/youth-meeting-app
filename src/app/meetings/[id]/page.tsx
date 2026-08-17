@@ -67,16 +67,46 @@ export default function MeetingDetailPage({ params }: { params: Promise<{ id: st
   const [addingId, setAddingId] = useState<number | null>(null);
 
   const fetchMeeting = async () => {
-    const res = await fetch(`/api/meetings/${id}`);
-    const data = await res.json();
-    setMeeting(data);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/meetings/${id}`);
+      if (!res.ok) throw new Error("Network error");
+      const data = await res.json();
+      setMeeting(data);
+    } catch (err) {
+      // Offline fallback: try to find the meeting in the bulk cache
+      try {
+        const cached = localStorage.getItem("offline_cache_meetings") || localStorage.getItem("offline_cache_attendance_meetings");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const meetingsList = parsed.data || parsed;
+          const m = meetingsList.find((x: any) => x.id === parseInt(id));
+          if (m) {
+            // Fill missing arrays to prevent UI crash
+            setMeeting({ ...m, attendees: [], attendanceCount: m.attendanceCount || 0 });
+          }
+        }
+      } catch (e) { /* ignore */ }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchMembers = async () => {
-    const res = await fetch("/api/members?status=active");
-    const data = await res.json();
-    setAllMembers(data);
+    try {
+      const res = await fetch("/api/members?status=active");
+      if (!res.ok) throw new Error("Network error");
+      const data = await res.json();
+      setAllMembers(data);
+    } catch (err) {
+      try {
+        const cached = localStorage.getItem("offline_cache_members_servants") || localStorage.getItem("offline_cache_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const membersList = parsed.data || parsed;
+          setAllMembers(membersList.filter((m: any) => m.status === "active"));
+        }
+      } catch (e) { /* ignore */ }
+    }
   };
 
   useEffect(() => {
