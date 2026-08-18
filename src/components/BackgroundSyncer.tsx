@@ -100,15 +100,12 @@ export default function BackgroundSyncer() {
             const media = await mediaRes.json();
             for (const item of media) {
               if (item.fileUrl) {
-                // Fetch direct URL
+                // Fetch direct URL for download capability
                 await fetch(item.fileUrl, { mode: "no-cors" }).catch(() => {});
                 
-                // If it's a PDF, also fetch the proxy URL that PdfViewer uses
-                const urlLower = item.fileUrl.toLowerCase();
-                if (urlLower.includes(".pdf")) {
-                  const proxyUrl = `/api/file-proxy/document.pdf?url=${encodeURIComponent(item.fileUrl)}`;
-                  await fetch(proxyUrl).catch(() => {});
-                }
+                // Cache the proxy URL (used by PdfViewer for all file types)
+                const proxyUrl = `/api/file-proxy/document.pdf?url=${encodeURIComponent(item.fileUrl)}`;
+                await fetch(proxyUrl).catch(() => {});
               }
             }
           }
@@ -124,7 +121,7 @@ export default function BackgroundSyncer() {
             }
           }
           
-          // Agpeya Slides
+          // Agpeya Slides - fetch WITHOUT no-cors so SW can cache them properly
           try {
             const agpeyaFolders = ["baker", "third", "sixth", "ninth", "sunset", "noom", "midnight"];
             const slideCounts = [79, 51, 52, 50, 44, 55, 159];
@@ -132,6 +129,11 @@ export default function BackgroundSyncer() {
               for (let j = 1; j <= slideCounts[i]; j++) {
                 await fetch(`/agpeya/${agpeyaFolders[i]}/Slide${j}.JPG`).catch(() => {});
               }
+            }
+            // Also cache the PPTX files for download
+            const pptxFiles = ["00 باكر.pptx", "01 الساعة الثالثة.pptx", "02 الساعة السادسة.pptx", "03 الساعة التاسعة.pptx", "04 الغروب.pptx", "05 النوم.pptx", "06 نصف الليل.pptx"];
+            for (const f of pptxFiles) {
+              await fetch(`/agpeya/${encodeURIComponent(f)}`).catch(() => {});
             }
           } catch (err) {
             console.warn("Agpeya prefetch failed", err);

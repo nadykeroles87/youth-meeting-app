@@ -23,29 +23,9 @@ function FileViewerContent() {
 
   const fileUrl = searchParams.get("url") || "";
   const title = searchParams.get("title") || "عرض الملف";
-  const fileType = searchParams.get("type") || "pdf";
 
-  const [pdfFailed, setPdfFailed] = useState(false);
-
-  // Check file type from both the 'type' parameter and the URL extension
-  const urlLower = fileUrl.toLowerCase();
-  const isPdf = fileType === "pdf" || urlLower.includes(".pdf");
-  
-  // Use Microsoft Office Viewer for non-PDF files (pptx, docx, etc.), or if the PDF viewer fails to load it (e.g. wrong type selected)
-  const useOfficeViewer = !isPdf || pdfFailed;
-
-  // Determine an appropriate extension for the proxy URL
-  let proxyExtension = ".pdf";
-  if (useOfficeViewer) {
-    if (fileType === "presentation" || urlLower.includes(".ppt")) proxyExtension = ".pptx";
-    else if (fileType === "document" || urlLower.includes(".doc")) proxyExtension = ".docx";
-    else proxyExtension = ".pptx"; // Default fallback for office viewer
-  }
-  
-  // Construct the proxy URL (ensure absolute URL for Microsoft Office Viewer)
-  // During SSR, we can't get window.location.origin, so we use a relative path for PdfViewer
-  // but we MUST use an absolute URL for Office Viewer.
-  const proxyPath = `/api/file-proxy/document${proxyExtension}?url=${encodeURIComponent(fileUrl)}`;
+  // Always use .pdf extension for the proxy to force PDF content-type
+  const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(fileUrl)}`;
   const absoluteProxyUrl = typeof window !== "undefined" 
     ? `${window.location.origin}${proxyPath}`
     : `https://youth-meeting-app.vercel.app${proxyPath}`;
@@ -172,36 +152,7 @@ function FileViewerContent() {
         <div className={`flex-1 overflow-auto min-h-0 ${
           isFullscreen ? "bg-stone-900" : "bg-white rounded-2xl shadow-sm border border-amber-200/70"
         }`}>
-          {useOfficeViewer && typeof navigator !== 'undefined' && !navigator.onLine ? (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-stone-100 rounded-2xl p-6 text-center">
-                  <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                    <FileText size={32} className="text-amber-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-stone-800 mb-2">تعذر عرض الملف</h3>
-                  <p className="text-stone-500 mb-6 max-w-sm text-sm leading-relaxed">
-                    أنت غير متصل بالإنترنت حالياً. ملفات الوورد والباوربوينت تحتاج إلى اتصال بالإنترنت لعرضها مباشرة. يرجى تحميل الملف لفتحه على جهازك.
-                  </p>
-                  <a
-                    href={fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/30"
-                  >
-                    <Download size={18} />
-                    تحميل الملف
-                  </a>
-                </div>
-              ) : useOfficeViewer ? (
-            /* Microsoft Office Online Viewer for non-PDF files (PPTX, DOCX, etc.) */
-            <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteProxyUrl)}`}
-              title={title}
-              className="w-full h-full border-0"
-            />
-          ) : (
-            /* Custom React-PDF Viewer for PDF files */
-            <PdfViewer fileUrl={absoluteProxyUrl} onError={() => setPdfFailed(true)} />
-          )}
+          <PdfViewer fileUrl={absoluteProxyUrl} />
         </div>
       </div>
     </PageWrapper>

@@ -439,9 +439,6 @@ export default function LibraryPage() {
                         <UploadCloud size={28} className="text-amber-600" />
                         <span className="font-bold text-amber-900 text-xs">اضغط هنا لاختيار الملف من جهازك</span>
                         <span className="text-[10px] text-stone-500">تدعم جميع الملفات: PDF, PPTX, MP4, Docx...</span>
-                        <div className="mt-2 p-1.5 bg-amber-100 rounded border border-amber-200 text-[10px] text-amber-800 font-bold max-w-xs leading-snug">
-                          ⚠️ هام: لكي تعمل ملفات الباوربوينت والوورد بدون إنترنت، يجب عليك حفظها كـ PDF من الكمبيوتر قبل رفعها هنا.
-                        </div>
                       </label>
                       {selectedFile && (
                         <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-100 p-1.5 rounded-lg border border-emerald-200 truncate">

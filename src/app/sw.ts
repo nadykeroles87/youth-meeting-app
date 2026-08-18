@@ -97,6 +97,19 @@ const serwist = new Serwist({
         ],
       }),
     },
+    // Cache Agpeya static files (slide images, PPTX downloads)
+    {
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/agpeya/"),
+      handler: new StaleWhileRevalidate({
+        cacheName: "agpeya-cache",
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 1000,
+            maxAgeSeconds: 90 * 24 * 60 * 60, // 90 days
+          }),
+        ],
+      }),
+    },
     ...defaultCache,
     // Cache uploaded images/files
     {
@@ -119,7 +132,6 @@ const serwist = new Serwist({
           !isSameOrigin &&
           (url.hostname.includes("cloudinary.com") ||
             url.hostname.includes("vercel-storage.com") ||
-            url.hostname.includes("unpkg.com") ||
             url.pathname.match(/\.(jpg|jpeg|png|webp|gif|svg|pdf|mp4|webm|pptx)$/i) !== null)
         );
       },

@@ -52,7 +52,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const zoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
   const resetZoom = () => setScale(1.0);
 
-  const pageWidth = Math.max((containerWidth - 20) * scale, 300);
+  const pageWidth = containerWidth * scale;
 
   return (
     <div 
@@ -125,7 +125,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
           </div>
         }
       >
-        <div className="flex flex-col items-center py-4 px-2">
+        <div className="flex flex-col items-center py-4">
           {Array.from({ length: numPages }, (_, i) => (
             <Page
               key={`page_${i + 1}`}
