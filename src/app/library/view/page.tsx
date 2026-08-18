@@ -33,8 +33,8 @@ function FileViewerContent() {
   // Relative proxy URL for PDF viewer (bypasses CORS)
   const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(fileUrl)}`;
 
-  // Google Docs Viewer URL for PPTX/DOCX files (uses original fileUrl directly)
-  const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+  // Microsoft Office Viewer URL for PPTX/DOCX files (faster than Google Docs)
+  const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExitBtn, setShowExitBtn] = useState(true);
@@ -187,12 +187,12 @@ function FileViewerContent() {
             /* PDF files: use react-pdf viewer with proxy to bypass CORS */
             <PdfViewer fileUrl={proxyPath} />
           ) : useGoogleViewer ? (
-            /* PPTX/DOCX files when online: use Google Docs Viewer */
+            /* PPTX/DOCX files when online: use Microsoft Office Viewer */
             <iframe
-              src={googleDocsUrl}
+              src={officeViewerUrl}
               title={title}
               className="w-full h-full border-0"
-              sandbox="allow-scripts allow-same-origin allow-popups"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
             />
           ) : showOfflineFallback ? (
             /* PPTX/DOCX files when offline: show download option */
