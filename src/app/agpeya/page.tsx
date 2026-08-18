@@ -182,7 +182,7 @@ export default function AgpeyaPage() {
 
         {/* ── Header ── */}
         <div className="bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
+          <div className="pr-12 md:pr-0">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30">
               <BookOpen size={14} />
               صلوات الأجبية القبطية (العروض المعتمدة)
