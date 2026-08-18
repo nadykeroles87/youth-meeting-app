@@ -141,6 +141,11 @@ export default function Sidebar() {
     </div>
   );
 
+  // Hide sidebar completely on full-screen viewer pages
+  if (pathname.startsWith("/library/view")) {
+    return null;
+  }
+
   return (
     <>
       {/* Mobile Menu Button */}
