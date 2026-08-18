@@ -130,7 +130,7 @@ export default function BackgroundSyncer() {
             const slideCounts = [79, 51, 52, 50, 44, 55, 159];
             for (let i = 0; i < agpeyaFolders.length; i++) {
               for (let j = 1; j <= slideCounts[i]; j++) {
-                await fetch(`/agpeya/${agpeyaFolders[i]}/Slide${j}.JPG`, { mode: "no-cors" }).catch(() => {});
+                await fetch(`/agpeya/${agpeyaFolders[i]}/Slide${j}.JPG`).catch(() => {});
               }
             }
           } catch (err) {

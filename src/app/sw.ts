@@ -119,6 +119,7 @@ const serwist = new Serwist({
           !isSameOrigin &&
           (url.hostname.includes("cloudinary.com") ||
             url.hostname.includes("vercel-storage.com") ||
+            url.hostname.includes("unpkg.com") ||
             url.pathname.match(/\.(jpg|jpeg|png|webp|gif|svg|pdf|mp4|webm|pptx)$/i) !== null)
         );
       },
