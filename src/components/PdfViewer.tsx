@@ -16,7 +16,7 @@ interface PdfViewerProps {
 
 export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [containerWidth, setContainerWidth] = useState<number>(800);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
   const [showControls, setShowControls] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,7 +37,9 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const measure = () => setContainerWidth(el.clientWidth);
+    const measure = () => {
+      if (el.clientWidth > 0) setContainerWidth(el.clientWidth);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -52,7 +54,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const zoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
   const resetZoom = () => setScale(1.0);
 
-  const pageWidth = containerWidth * scale;
+  const pageWidth = containerWidth > 0 ? containerWidth * scale : undefined;
 
   return (
     <div 
