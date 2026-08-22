@@ -36,15 +36,14 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const pinchStartDistRef = useRef<number>(0);
   const pinchStartScaleRef = useRef<number>(1.0);
 
-  // ── Measure container width (subtract padding for mobile) ──
+  // ── Measure container width (full width) ──
   useEffect(() => {
     const measure = () => {
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
-        // Subtract padding (12px each side) so pages don't touch edges
-        if (w > 0) setPageWidth(Math.max(w - 24, 200));
+        if (w > 0) setPageWidth(Math.max(w, 200));
       } else {
-        setPageWidth(Math.max(window.innerWidth - 24, 200));
+        setPageWidth(Math.max(window.innerWidth, 200));
       }
     };
 
@@ -290,7 +289,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
             </div>
           }
         >
-          <div className="flex flex-col items-center py-3 gap-3" style={{ minWidth: scaledWidth > pageWidth ? `${scaledWidth + 24}px` : "auto" }}>
+          <div className="flex flex-col items-center py-3 gap-3" style={{ minWidth: scaledWidth > pageWidth ? `${scaledWidth}px` : "auto" }}>
             {Array.from({ length: numPages }, (_, i) => (
               <div
                 key={`page_${i + 1}`}

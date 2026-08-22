@@ -34,10 +34,6 @@ function FileViewerContent() {
   // Proxy URL for PDF viewer (same-origin, avoids CORS)
   const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(fileUrl)}`;
 
-  // Viewer URLs
-  const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
-  const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-
   const [mounted, setMounted] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -45,6 +41,17 @@ function FileViewerContent() {
   const [viewerError, setViewerError] = useState(false);
   const [activeViewer, setActiveViewer] = useState<ViewerType>("none");
   const [retryKey, setRetryKey] = useState(0);
+
+  // Get absolute URL for external viewers
+  const getAbsoluteUrl = (url: string) => {
+    if (!mounted || !url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const absoluteFileUrl = getAbsoluteUrl(fileUrl);
+  const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteFileUrl)}`;
+  const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(absoluteFileUrl)}&embedded=true`;
 
   // Detect mobile
   useEffect(() => {
@@ -72,7 +79,7 @@ function FileViewerContent() {
     setViewerError(false);
   }, [isPptx, mounted, isMobile]);
 
-  // Timeout for viewer loading (15s instead of 30s)
+  // Timeout for viewer loading (45s instead of 15s)
   useEffect(() => {
     if (!isPptx || !isOnline || activeViewer === "none") return;
     const timer = setTimeout(() => {
@@ -86,7 +93,7 @@ function FileViewerContent() {
           setViewerError(true);
         }
       }
-    }, 15000);
+    }, 45000);
     return () => clearTimeout(timer);
   }, [isPptx, isOnline, viewerLoaded, activeViewer, retryKey]);
 
