@@ -32,14 +32,19 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // ── Measure container width ──
+  // Pinch-to-zoom refs
+  const pinchStartDistRef = useRef<number>(0);
+  const pinchStartScaleRef = useRef<number>(1.0);
+
+  // ── Measure container width (subtract padding for mobile) ──
   useEffect(() => {
     const measure = () => {
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
-        if (w > 0) setPageWidth(w);
+        // Subtract padding (12px each side) so pages don't touch edges
+        if (w > 0) setPageWidth(Math.max(w - 24, 200));
       } else {
-        setPageWidth(window.innerWidth);
+        setPageWidth(Math.max(window.innerWidth - 24, 200));
       }
     };
 
@@ -58,7 +63,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+    hideTimerRef.current = setTimeout(() => setShowControls(false), 4000);
   }, []);
 
   useEffect(() => {
@@ -80,6 +85,48 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       document.exitFullscreen();
     }
   }, []);
+
+  // ── Pinch-to-zoom ──
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const getTouchDistance = (touches: TouchList) => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchStartDistRef.current = getTouchDistance(e.touches);
+        pinchStartScaleRef.current = scale;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getTouchDistance(e.touches);
+        if (pinchStartDistRef.current > 0) {
+          const ratio = dist / pinchStartDistRef.current;
+          const newScale = Math.min(Math.max(pinchStartScaleRef.current * ratio, 0.5), 3);
+          setScale(newScale);
+          resetHideTimer();
+        }
+      }
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [scale, resetHideTimer]);
 
   // ── Track current page via scroll ──
   useEffect(() => {
@@ -132,64 +179,65 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       onMouseMove={resetHideTimer}
       onTouchStart={resetHideTimer}
     >
-      {/* ── Floating Toolbar ── */}
+      {/* ── Floating Toolbar (responsive) ── */}
       {numPages > 0 && (
         <div
-          className={`absolute top-3 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${
+          className={`absolute top-2 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 w-[calc(100%-1rem)] max-w-fit ${
             showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
           }`}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         >
-          <div className="flex items-center gap-0.5 bg-stone-900/85 backdrop-blur-xl text-white rounded-2xl shadow-2xl px-2 py-1.5 border border-white/10">
+          <div className="flex items-center justify-center gap-0.5 bg-stone-900/90 backdrop-blur-xl text-white rounded-2xl shadow-2xl px-1.5 sm:px-2 py-1 sm:py-1.5 border border-white/10 mx-auto">
             {/* Page Navigation */}
             <button
               onClick={() => goToPage(Math.max(1, currentPage - 1))}
               disabled={currentPage <= 1}
-              className="p-1.5 rounded-lg hover:bg-white/15 disabled:opacity-30 transition-colors"
+              className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 disabled:opacity-30 transition-colors"
               title="الصفحة السابقة"
             >
-              <ChevronUp size={16} />
+              <ChevronUp size={14} className="sm:w-4 sm:h-4" />
             </button>
 
-            <span className="text-[11px] font-bold min-w-[60px] text-center tabular-nums">
+            <span className="text-[10px] sm:text-[11px] font-bold min-w-[44px] sm:min-w-[60px] text-center tabular-nums">
               {currentPage} / {numPages}
             </span>
 
             <button
               onClick={() => goToPage(Math.min(numPages, currentPage + 1))}
               disabled={currentPage >= numPages}
-              className="p-1.5 rounded-lg hover:bg-white/15 disabled:opacity-30 transition-colors"
+              className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 disabled:opacity-30 transition-colors"
               title="الصفحة التالية"
             >
-              <ChevronDown size={16} />
+              <ChevronDown size={14} className="sm:w-4 sm:h-4" />
             </button>
 
-            <div className="w-px h-5 bg-white/20 mx-1" />
+            <div className="w-px h-4 sm:h-5 bg-white/20 mx-0.5 sm:mx-1" />
 
             {/* Zoom Controls */}
-            <button onClick={zoomOut} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="تصغير">
-              <ZoomOut size={15} />
+            <button onClick={zoomOut} className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="تصغير">
+              <ZoomOut size={13} className="sm:w-[15px] sm:h-[15px]" />
             </button>
 
             <button
               onClick={resetZoom}
-              className="px-1.5 py-1 rounded-lg hover:bg-white/15 text-[11px] font-bold min-w-[40px] text-center transition-colors tabular-nums"
+              className="px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-lg hover:bg-white/15 text-[10px] sm:text-[11px] font-bold min-w-[32px] sm:min-w-[40px] text-center transition-colors tabular-nums"
               title="إعادة ضبط"
             >
               {Math.round(scale * 100)}%
             </button>
 
-            <button onClick={zoomIn} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="تكبير">
-              <ZoomIn size={15} />
+            <button onClick={zoomIn} className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="تكبير">
+              <ZoomIn size={13} className="sm:w-[15px] sm:h-[15px]" />
             </button>
 
-            <div className="w-px h-5 bg-white/20 mx-1" />
+            <div className="w-px h-4 sm:h-5 bg-white/20 mx-0.5 sm:mx-1" />
 
             {/* Fit & Fullscreen */}
-            <button onClick={fitWidth} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="ملائمة العرض">
+            <button onClick={fitWidth} className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 transition-colors hidden sm:block" title="ملائمة العرض">
               <RotateCw size={15} />
             </button>
-            <button onClick={toggleFullscreen} className="p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="ملء الشاشة">
-              {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
+            <button onClick={toggleFullscreen} className="p-1 sm:p-1.5 rounded-lg hover:bg-white/15 transition-colors" title="ملء الشاشة">
+              {isFullscreen ? <Minimize size={13} className="sm:w-[15px] sm:h-[15px]" /> : <Maximize size={13} className="sm:w-[15px] sm:h-[15px]" />}
             </button>
           </div>
         </div>
@@ -198,9 +246,13 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       {/* ── Scrollable Pages Container ── */}
       <div
         ref={containerRef}
-        className={`flex-1 overflow-auto scroll-smooth ${
+        className={`flex-1 overflow-x-auto overflow-y-auto scroll-smooth ${
           isFullscreen ? "bg-stone-800" : "bg-stone-100"
         }`}
+        style={{ 
+          WebkitOverflowScrolling: "touch",
+          touchAction: "pan-x pan-y",
+        }}
       >
         <Document
           file={fileUrl}
@@ -238,7 +290,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
             </div>
           }
         >
-          <div className="flex flex-col items-center py-3 gap-3">
+          <div className="flex flex-col items-center py-3 gap-3" style={{ minWidth: scaledWidth > pageWidth ? `${scaledWidth + 24}px` : "auto" }}>
             {Array.from({ length: numPages }, (_, i) => (
               <div
                 key={`page_${i + 1}`}
