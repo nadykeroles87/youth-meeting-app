@@ -59,9 +59,6 @@ const serwist = new Serwist({
       matcher: ({ request }: { request: Request }) => request.headers.get("RSC") === "1",
       handler: new StaleWhileRevalidate({
         cacheName: "rsc-cache",
-        matchOptions: {
-          ignoreSearch: true, // ignore Next.js dynamic _rsc query
-        },
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
@@ -86,9 +83,6 @@ const serwist = new Serwist({
       },
       handler: new StaleWhileRevalidate({
         cacheName: "pages-cache",
-        matchOptions: {
-          ignoreSearch: true,
-        },
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
