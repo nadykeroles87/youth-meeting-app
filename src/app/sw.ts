@@ -83,6 +83,9 @@ const serwist = new Serwist({
       },
       handler: new StaleWhileRevalidate({
         cacheName: "pages-cache",
+        matchOptions: {
+          ignoreSearch: true,
+        },
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
