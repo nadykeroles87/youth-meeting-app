@@ -30,8 +30,6 @@ export const viewport = {
   viewportFit: "cover" as const,
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

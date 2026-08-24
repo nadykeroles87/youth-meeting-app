@@ -32,10 +32,6 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // Pinch-to-zoom refs
-  const pinchStartDistRef = useRef<number>(0);
-  const pinchStartScaleRef = useRef<number>(1.0);
-
   // ── Measure container width (full width) ──
   useEffect(() => {
     const measure = () => {
@@ -84,48 +80,6 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       document.exitFullscreen();
     }
   }, []);
-
-  // ── Pinch-to-zoom ──
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const getTouchDistance = (touches: TouchList) => {
-      if (touches.length < 2) return 0;
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        pinchStartDistRef.current = getTouchDistance(e.touches);
-        pinchStartScaleRef.current = scale;
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = getTouchDistance(e.touches);
-        if (pinchStartDistRef.current > 0) {
-          const ratio = dist / pinchStartDistRef.current;
-          const newScale = Math.min(Math.max(pinchStartScaleRef.current * ratio, 0.5), 3);
-          setScale(newScale);
-          resetHideTimer();
-        }
-      }
-    };
-
-    container.addEventListener("touchstart", handleTouchStart, { passive: false });
-    container.addEventListener("touchmove", handleTouchMove, { passive: false });
-
-    return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchmove", handleTouchMove);
-    };
-  }, [scale, resetHideTimer]);
 
   // ── Track current page via scroll ──
   useEffect(() => {
