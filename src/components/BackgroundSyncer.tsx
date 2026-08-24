@@ -106,6 +106,11 @@ export default function BackgroundSyncer() {
                 // Cache the proxy URL (used by PdfViewer for all file types)
                 const proxyUrl = `/api/file-proxy/document.pdf?url=${encodeURIComponent(item.fileUrl)}`;
                 await fetch(proxyUrl).catch(() => {});
+
+                // Cache the RSC payload and HTML for the specific view page
+                const viewUrl = `/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(item.fileType)}`;
+                await fetch(viewUrl, { headers: { Accept: "text/html" } }).catch(() => {});
+                await fetch(viewUrl, { headers: { RSC: "1" } }).catch(() => {});
               }
             }
           }
