@@ -43,7 +43,7 @@ export default function BackgroundSyncer() {
       if (!navigator.onLine) return;
       
       // Small delay to ensure this doesn't block the initial page load
-      setTimeout(() => {
+      setTimeout(async () => {
       // 1. Cache API endpoints data in localStorage
       ENDPOINTS_TO_CACHE.forEach(async ({ url, key }) => {
         try {
@@ -65,6 +65,14 @@ export default function BackgroundSyncer() {
           console.warn(`[BackgroundSyncer] Failed to prefetch page ${url}`, err);
         }
       });
+
+      // 2.5 Cache PDF.js Worker
+      try {
+        // Hardcoded version for react-pdf 9.x/10.x (avoids SSR DOMMatrix error)
+        await fetch(`https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs`);
+      } catch (err) {
+        console.warn("[BackgroundSyncer] Failed to prefetch PDF worker", err);
+      }
 
       // 3. Dynamically fetch and cache subpages (Meetings and Members) sequentially
       const prefetchDynamicPages = async () => {

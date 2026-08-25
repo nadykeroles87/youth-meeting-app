@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist, NetworkFirst, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
+import { Serwist, NetworkFirst, StaleWhileRevalidate, ExpirationPlugin, RangeRequestsPlugin } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -51,6 +51,7 @@ const serwist = new Serwist({
             maxEntries: 1000,
             maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
           }),
+          new RangeRequestsPlugin(),
         ],
       }),
     },
@@ -118,6 +119,7 @@ const serwist = new Serwist({
             maxEntries: 1000,
             maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
           }),
+          new RangeRequestsPlugin(),
         ],
       }),
     },
@@ -140,6 +142,7 @@ const serwist = new Serwist({
             maxEntries: 1000,
             maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
           }),
+          new RangeRequestsPlugin(),
         ],
       }),
     },
