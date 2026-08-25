@@ -71,8 +71,24 @@ function FileViewerContent() {
     detectedType = "pdf"; // Default fallback
   }
 
+  // Normalize URLs to get raw binary data instead of HTML wrapper pages
+  let normalizedUrl = fileUrl;
+  
+  // 1. GitHub Blob URLs
+  if (normalizedUrl.includes("github.com") && normalizedUrl.includes("/blob/")) {
+    normalizedUrl = normalizedUrl.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
+  }
+  
+  // 2. Google Drive URLs
+  if (normalizedUrl.includes("drive.google.com/file/d/")) {
+    const match = normalizedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      normalizedUrl = `https://drive.google.com/uc?export=download&id=${match[1]}`;
+    }
+  }
+
   // Proxy URL (same-origin, avoids CORS)
-  const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(fileUrl)}`;
+  const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(normalizedUrl)}`;
 
   const [mounted, setMounted] = useState(false);
 
