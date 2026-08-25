@@ -9,8 +9,11 @@ export default function XlsxViewer({ fileUrl }: { fileUrl: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showToolbar, setShowToolbar] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const viewerContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,35 +75,62 @@ export default function XlsxViewer({ fileUrl }: { fileUrl: string }) {
     }
   }, []);
 
+  // ── Auto-hide toolbar on scroll ──
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !htmlContent) return;
+
+    let timeout: NodeJS.Timeout;
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      
+      if (scrollTop > lastScrollY && scrollTop > 50) {
+        setShowToolbar(false);
+      } else {
+        setShowToolbar(true);
+      }
+      setLastScrollY(scrollTop);
+
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setShowToolbar(true), 1500);
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      clearTimeout(timeout);
+    };
+  }, [htmlContent, lastScrollY]);
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center w-full h-full bg-stone-100 text-center">
+      <div className="flex flex-col items-center justify-center w-full h-full bg-stone-50 text-center">
         <div className="relative mb-6">
-          <div className="w-16 h-16 rounded-full bg-white shadow-inner border border-stone-200 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-amber-50 shadow-inner border border-stone-200 flex items-center justify-center">
             <Loader2 size={28} className="animate-spin text-green-600" />
           </div>
         </div>
         <p className="text-sm font-bold text-stone-600">جاري تحميل وتجهيز جدول البيانات...</p>
-        <p className="text-xs text-stone-400 mt-1">يتم الآن معالجة الجداول לעرضها</p>
       </div>
     );
   }
 
   if (error || htmlContent === null) {
     return (
-      <div className="flex flex-col items-center justify-center w-full h-full bg-stone-100 p-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4 border-2 border-red-100">
+      <div className="flex flex-col items-center justify-center w-full h-full bg-stone-50 p-6 text-center">
+        <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
           <FileText size={32} className="text-red-400" />
         </div>
         <h3 className="font-bold text-stone-800 mb-2">تعذر عرض الملف</h3>
-        <p className="text-xs text-stone-500 mb-5 max-w-xs">{error}</p>
+        <p className="text-xs text-stone-500 mb-5">{error}</p>
         <a
           href={fileUrl}
           download
-          className="flex items-center gap-2 bg-stone-800 hover:bg-stone-900 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg"
+          className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition-all"
         >
           <Download size={14} />
-          تحميل الملف بدلاً من ذلك
+          تحميل مباشر
         </a>
       </div>
     );
@@ -109,41 +139,16 @@ export default function XlsxViewer({ fileUrl }: { fileUrl: string }) {
   return (
     <div 
       ref={viewerContainerRef}
-      className={`flex flex-col w-full h-full bg-stone-100 overflow-hidden ${
+      className={`flex flex-col w-full h-full bg-stone-50 overflow-hidden relative ${
         isFullscreen ? "fixed inset-0 z-[300]" : ""
       }`}
     >
-      {/* ── Professional Top Toolbar ── */}
-      <div className="flex items-center justify-between bg-stone-900 text-stone-300 px-2 sm:px-4 py-2 flex-shrink-0 shadow-md border-b border-stone-800 z-20">
-        <div className="flex items-center gap-2">
-           <span className="text-xs font-bold bg-green-700 px-3 py-1.5 rounded-lg border border-green-600 text-white">
-             جدول بيانات (Excel)
-           </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={toggleFullscreen} 
-            className="p-1.5 hover:bg-stone-800 rounded-lg text-white transition-colors cursor-pointer flex items-center gap-1.5" 
-            title="ملء الشاشة"
-          >
-            {isFullscreen ? (
-              <>
-                <Minimize size={18} />
-                <span className="text-[11px] font-bold hidden sm:inline">إنهاء ملء الشاشة</span>
-              </>
-            ) : (
-              <>
-                <Maximize size={18} />
-                <span className="text-[11px] font-bold hidden sm:inline">ملء الشاشة</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* ── Content Area ── */}
-      <div className="flex-1 min-h-0 relative bg-white overflow-auto scroll-smooth p-4 sm:p-8" style={{ direction: "rtl" }}>
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 min-h-0 relative bg-white overflow-auto scroll-smooth p-4 sm:p-8" 
+        style={{ direction: "rtl" }}
+      >
         <div 
            className="xlsx-content"
            dangerouslySetInnerHTML={{ __html: htmlContent }} 
@@ -173,6 +178,30 @@ export default function XlsxViewer({ fileUrl }: { fileUrl: string }) {
           background-color: #f0fdf4;
         }
       `}} />
+
+      {/* ── Floating Minimalist Toolbar ── */}
+      <div 
+        className={`absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-stone-200 rounded-full flex items-center gap-2 px-3 py-2 transition-all duration-300 z-50 ${
+          showToolbar ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0 pointer-events-none"
+        }`}
+        style={{ direction: "rtl" }}
+      >
+        <div className="px-2">
+           <span className="text-xs font-bold text-green-700">
+             جدول بيانات
+           </span>
+        </div>
+
+        <div className="w-px h-6 bg-stone-300 mx-1" />
+
+        <button 
+          onClick={toggleFullscreen} 
+          className="p-2 text-stone-600 hover:bg-amber-50 hover:text-amber-600 rounded-full transition-colors active:scale-95 flex items-center gap-1" 
+          aria-label="ملء الشاشة"
+        >
+          {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+        </button>
+      </div>
     </div>
   );
 }
