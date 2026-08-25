@@ -1,17 +1,17 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useCallback } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowRight, FileText, Loader2, Download, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Download } from "lucide-react";
 import dynamic from "next/dynamic";
 
-// Dynamically import the PDF viewer (no SSR - avoids DOMMatrix/window errors)
+// Dynamically import viewers (no SSR - avoids DOMMatrix/window errors)
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ssr: false,
   loading: () => (
     <div className="flex flex-col items-center justify-center h-full bg-stone-100">
       <Loader2 size={36} className="animate-spin text-amber-600 mb-3" />
-      <p className="text-sm font-bold text-stone-500">جاري تحميل العارض...</p>
+      <p className="text-sm font-bold text-stone-500">جاري تحميل عارض الـ PDF...</p>
     </div>
   ),
 });
@@ -26,7 +26,27 @@ const PptxViewer = dynamic(() => import("@/components/PptxViewer"), {
   ),
 });
 
-type ViewerType = "office" | "google" | "none";
+const DocxViewer = dynamic(() => import("@/components/DocxViewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center h-full bg-stone-100">
+      <Loader2 size={36} className="animate-spin text-blue-600 mb-3" />
+      <p className="text-sm font-bold text-stone-500">جاري تحميل عارض المستندات...</p>
+    </div>
+  ),
+});
+
+const XlsxViewer = dynamic(() => import("@/components/XlsxViewer"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center h-full bg-stone-100">
+      <Loader2 size={36} className="animate-spin text-green-600 mb-3" />
+      <p className="text-sm font-bold text-stone-500">جاري تحميل عارض الجداول...</p>
+    </div>
+  ),
+});
+
+type FileExtensionType = "pdf" | "pptx" | "docx" | "xlsx" | "unknown";
 
 function FileViewerContent() {
   const searchParams = useSearchParams();
@@ -34,32 +54,30 @@ function FileViewerContent() {
 
   const fileUrl = searchParams.get("url") || "";
   const title = searchParams.get("title") || "عرض الملف";
-  const fileType = searchParams.get("type") || "pdf";
 
-  // Detect file type from URL extension, fallback to type param
+  // Detect file type rigorously
   const urlLower = fileUrl.toLowerCase();
-  const isPptx = urlLower.includes(".ppt") || urlLower.includes(".doc") || fileType === "presentation" || fileType === "document";
-  const isPdf = !isPptx;
+  
+  let detectedType: FileExtensionType = "unknown";
+  if (urlLower.includes(".pdf")) {
+    detectedType = "pdf";
+  } else if (urlLower.includes(".ppt")) {
+    detectedType = "pptx";
+  } else if (urlLower.includes(".doc")) {
+    detectedType = "docx";
+  } else if (urlLower.includes(".xls") || urlLower.includes(".csv")) {
+    detectedType = "xlsx";
+  } else {
+    detectedType = "pdf"; // Default fallback
+  }
 
-  // Proxy URL for PDF viewer (same-origin, avoids CORS)
+  // Proxy URL (same-origin, avoids CORS)
   const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(fileUrl)}`;
 
   const [mounted, setMounted] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
 
-  // Detect mobile & online
   useEffect(() => {
     setMounted(true);
-    setIsOnline(navigator.onLine);
-
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-    window.addEventListener("online", goOnline);
-    window.addEventListener("offline", goOffline);
-    return () => {
-      window.removeEventListener("online", goOnline);
-      window.removeEventListener("offline", goOffline);
-    };
   }, []);
 
   if (!fileUrl) {
@@ -124,13 +142,10 @@ function FileViewerContent() {
 
       {/* ── Content Area ── */}
       <div className="flex-1 min-h-0 w-full relative">
-        {isPdf ? (
-          /* ── PDF Viewer ── */
-          <PdfViewer fileUrl={proxyPath} />
-        ) : (
-          /* ── PPTX Viewer (Local Render) ── */
-          <PptxViewer fileUrl={proxyPath} />
-        )}
+        {detectedType === "pdf" && <PdfViewer fileUrl={proxyPath} />}
+        {detectedType === "pptx" && <PptxViewer fileUrl={proxyPath} />}
+        {detectedType === "docx" && <DocxViewer fileUrl={proxyPath} />}
+        {detectedType === "xlsx" && <XlsxViewer fileUrl={proxyPath} />}
       </div>
     </div>
   );
