@@ -5,6 +5,11 @@ import { PowerPointViewer } from "pptx-react-viewer";
 import "pptx-react-viewer/styles";
 import { Loader2, FileText, Download, Maximize, Minimize } from "lucide-react";
 
+// Fix for pptx-react-viewer production crash (CHART_PX_PER_PT is not defined)
+if (typeof window !== "undefined") {
+  (window as any).CHART_PX_PER_PT = 4 / 3;
+}
+
 export default function PptxViewer({ fileUrl }: { fileUrl: string }) {
   const [content, setContent] = useState<Uint8Array | null>(null);
   const [loading, setLoading] = useState(true);

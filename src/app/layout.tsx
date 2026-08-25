@@ -43,6 +43,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Fix for pptx-react-viewer crash in Next.js production builds
+              window.CHART_PX_PER_PT = 4 / 3;
+
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(
