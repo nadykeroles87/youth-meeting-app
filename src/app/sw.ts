@@ -37,12 +37,12 @@ const serwist = new Serwist({
     ],
   },
   runtimeCaching: [
-    // Cache API routes with StaleWhileRevalidate strategy
-    // This ensures instant loading from cache while offline, and background updates when online.
+    // Cache API routes with NetworkFirst strategy
+    // This ensures we get the fresh data when online, but fallback to cache when offline.
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/"),
-      handler: new StaleWhileRevalidate({
-        cacheName: "api-cache",
+      handler: new NetworkFirst({
+        cacheName: "api-cache-v2",
         matchOptions: {
           ignoreVary: true,
         },
@@ -58,8 +58,8 @@ const serwist = new Serwist({
     // RSC Payload Cache
     {
       matcher: ({ request }: { request: Request }) => request.headers.get("RSC") === "1",
-      handler: new StaleWhileRevalidate({
-        cacheName: "rsc-cache",
+      handler: new NetworkFirst({
+        cacheName: "rsc-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
@@ -68,7 +68,8 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // Cache all HTML pages with StaleWhileRevalidate for offline access
+    // Cache all HTML pages with NetworkFirst for offline access
+    // StaleWhileRevalidate causes stale JS chunks to break the Next.js app on new deployments.
     {
       matcher: ({ request, url }: { request: Request; url: URL }) => {
         const isAppPage = [
@@ -82,8 +83,8 @@ const serwist = new Serwist({
                request.mode === "navigate" || 
                request.headers.get("Accept")?.includes("text/html");
       },
-      handler: new StaleWhileRevalidate({
-        cacheName: "pages-cache",
+      handler: new NetworkFirst({
+        cacheName: "pages-cache-v2",
         matchOptions: {
           ignoreSearch: true,
         },
@@ -99,7 +100,7 @@ const serwist = new Serwist({
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/agpeya/"),
       handler: new StaleWhileRevalidate({
-        cacheName: "agpeya-cache",
+        cacheName: "agpeya-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
@@ -113,7 +114,7 @@ const serwist = new Serwist({
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/uploads/"),
       handler: new StaleWhileRevalidate({
-        cacheName: "uploads-cache",
+        cacheName: "uploads-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
@@ -136,7 +137,7 @@ const serwist = new Serwist({
         );
       },
       handler: new StaleWhileRevalidate({
-        cacheName: "external-media-cache",
+        cacheName: "external-media-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,

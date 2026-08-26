@@ -24,9 +24,39 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showToolbar, setShowToolbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Use window.innerWidth directly (this component is dynamically imported, no SSR)
   const [pageWidth, setPageWidth] = useState<number>(window.innerWidth);
+
+  useEffect(() => {
+    let isMounted = true;
+    let currentBlobUrl = "";
+
+    const loadPdf = async () => {
+      try {
+        const response = await fetch(fileUrl);
+        if (!response.ok) throw new Error("فشل تحميل الملف");
+        const blob = await response.blob();
+        currentBlobUrl = URL.createObjectURL(blob);
+        if (isMounted) setBlobUrl(currentBlobUrl);
+      } catch (err) {
+        console.error("PDF load error:", err);
+        if (isMounted) {
+          setLoadError("فشل تحميل الملف. يرجى التحقق من الاتصال بالإنترنت.");
+          if (onError) onError();
+        }
+      }
+    };
+    
+    loadPdf();
+
+    return () => {
+      isMounted = false;
+      if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    };
+  }, [fileUrl, onError]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -142,43 +172,54 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
           touchAction: "pan-x pan-y",
         }}
       >
-        <Document
-          file={fileUrl}
-          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-          onLoadError={(error) => {
-            console.error("PDF load error:", error);
-            if (onError) onError();
-          }}
-          loading={
-            <div className="flex flex-col items-center justify-center h-full py-32">
-              <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-4">
-                <Loader2 size={28} className="animate-spin text-amber-600" />
-              </div>
-              <p className="text-sm font-bold text-stone-600">جاري تحميل المستند...</p>
+        {!blobUrl && !loadError && (
+          <div className="flex flex-col items-center justify-center h-full py-32">
+            <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-4 shadow-inner border border-stone-200">
+              <Loader2 size={28} className="animate-spin text-amber-600" />
             </div>
-          }
-          error={
-            <div className="flex flex-col items-center justify-center h-full py-32 text-center px-6">
-              <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                <FileText size={32} className="text-red-400" />
-              </div>
-              <h3 className="font-bold text-stone-800 text-base mb-2">فشل تحميل المستند</h3>
-              <p className="text-xs text-stone-500 mb-5">يرجى التحقق من الإنترنت والمحاولة لاحقاً</p>
-              <a
-                href={fileUrl}
-                download
-                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition-all"
-              >
-                <Download size={14} />
-                تحميل مباشر
-              </a>
+            <p className="text-sm font-bold text-stone-600">جاري جلب المستند...</p>
+          </div>
+        )}
+        {loadError && (
+          <div className="flex flex-col items-center justify-center h-full py-32 text-center px-6">
+            <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
+              <FileText size={32} className="text-red-400" />
             </div>
-          }
-        >
-          <div className="flex flex-col items-center py-4 gap-4 min-h-full" style={{ minWidth: scaledWidth > pageWidth ? `${scaledWidth}px` : "auto" }}>
-            {Array.from({ length: numPages }, (_, i) => (
-              <div
-                key={`page_${i + 1}`}
+            <h3 className="font-bold text-stone-800 text-base mb-2">فشل تحميل المستند</h3>
+            <p className="text-xs text-stone-500 mb-5">{loadError}</p>
+            <a
+              href={fileUrl}
+              download
+              className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition-all"
+            >
+              <Download size={14} />
+              تحميل مباشر
+            </a>
+          </div>
+        )}
+        {blobUrl && (
+          <Document
+            file={blobUrl}
+            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadError={(error) => {
+              console.error("PDF load error:", error);
+              setLoadError("لم نتمكن من قراءة الملف كـ PDF");
+              if (onError) onError();
+            }}
+            loading={
+              <div className="flex flex-col items-center justify-center h-full py-32">
+                <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+                  <Loader2 size={28} className="animate-spin text-amber-600" />
+                </div>
+                <p className="text-sm font-bold text-stone-600">جاري معالجة المستند...</p>
+              </div>
+            }
+            error={null}
+          >
+            <div className="flex flex-col items-center py-4 gap-4 min-h-full" style={{ minWidth: scaledWidth > pageWidth ? `${scaledWidth}px` : "auto" }}>
+              {Array.from({ length: numPages }, (_, i) => (
+                <div
+                  key={`page_${i + 1}`}
                 ref={(el) => {
                   if (el) pageRefs.current.set(i + 1, el);
                 }}
@@ -195,6 +236,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
             ))}
           </div>
         </Document>
+        )}
       </div>
 
       {/* ── Floating Minimalist Toolbar ── */}
