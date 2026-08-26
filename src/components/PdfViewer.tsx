@@ -187,14 +187,6 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
             </div>
             <h3 className="font-bold text-stone-800 text-base mb-2">فشل تحميل المستند</h3>
             <p className="text-xs text-stone-500 mb-5">{loadError}</p>
-            <a
-              href={fileUrl}
-              download
-              className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition-all"
-            >
-              <Download size={14} />
-              تحميل مباشر
-            </a>
           </div>
         )}
         {blobUrl && (

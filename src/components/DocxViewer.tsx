@@ -116,15 +116,7 @@ export default function DocxViewer({ fileUrl }: { fileUrl: string }) {
           <FileText size={32} className="text-red-400" />
         </div>
         <h3 className="font-bold text-stone-800 mb-2">تعذر عرض الملف</h3>
-        <p className="text-xs text-stone-500 mb-5">{error}</p>
-        <a
-          href={fileUrl}
-          download
-          className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition-all"
-        >
-          <Download size={14} />
-          تحميل مباشر
-        </a>
+        <p className="text-xs text-stone-500 mb-5">{error || "لا يمكن عرض هذا النوع من الملفات مباشرة"}</p>
       </div>
     );
   }
