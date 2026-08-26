@@ -88,7 +88,7 @@ function FileViewerContent() {
   }
 
   // Proxy URL (same-origin, avoids CORS)
-  const proxyPath = `/api/file-proxy/document.pdf?url=${encodeURIComponent(normalizedUrl)}`;
+  const proxyPath = `/api/file-proxy?type=${detectedType}&url=${encodeURIComponent(normalizedUrl)}`;
 
   const [mounted, setMounted] = useState(false);
 
