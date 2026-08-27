@@ -97,14 +97,6 @@ export async function POST() {
         uploadedBy: servant1.id,
       },
       {
-        title: "عرض تقديمى - مسابقة الكتاب المقدس 🏆",
-        description: "اسئلة مسابقة الكتاب المقدس لاجتماع الشباب",
-        fileUrl: "https://raw.githubusercontent.com/nadykeroles87/youth-meeting-app/main/public/sample.pptx",
-        fileType: "document",
-        category: "general",
-        uploadedBy: servant1.id,
-      },
-      {
         title: "فيديو اجتماع الشباب - موضوع محبة الله 🎬",
         description: "تسجيل كلمة اجتماع الشباب الأخير وتأملات في الآية 'منقوش على كفك'",
         fileUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
