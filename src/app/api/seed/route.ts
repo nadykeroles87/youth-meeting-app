@@ -91,7 +91,7 @@ export async function POST() {
       {
         title: "كتاب ترانيم اجتماع الشباب 🎵",
         description: "كتيب الترانيم والصلوات الخاصة باجتماع منقوش على كفك",
-        fileUrl: "https://raw.githubusercontent.com/nickmomrik/resume/master/resume.pdf",
+        fileUrl: "https://pdfobject.com/pdf/sample.pdf",
         fileType: "pdf",
         category: "hymns",
         uploadedBy: servant1.id,
