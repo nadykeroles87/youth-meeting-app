@@ -78,12 +78,12 @@ export async function POST() {
       },
     ]);
 
-    // Create seed media files (PDF & Videos)
+    // Create seed media files (PDF, PPTX, DOCX & Videos)
     await db.insert(mediaItems).values([
       {
         title: "كتاب صلوات الأجبية القبطية الكاملة 📖",
         description: "نسخة PDF شاملة لصلوات السواعي القبطية (باكر، الثالثة، السادسة، الغروب، النوم)",
-        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileUrl: "https://www.africau.edu/images/default/sample.pdf",
         fileType: "pdf",
         category: "coptic_prayers",
         uploadedBy: servant1.id,
@@ -91,9 +91,17 @@ export async function POST() {
       {
         title: "كتاب ترانيم اجتماع الشباب 🎵",
         description: "كتيب الترانيم والصلوات الخاصة باجتماع منقوش على كفك",
-        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        fileUrl: "https://scholar.harvard.edu/files/torber/files/sample.pdf",
         fileType: "pdf",
         category: "hymns",
+        uploadedBy: servant1.id,
+      },
+      {
+        title: "عرض تقديمى - مسابقة الكتاب المقدس 🏆",
+        description: "اسئلة مسابقة الكتاب المقدس لاجتماع الشباب",
+        fileUrl: "https://raw.githubusercontent.com/nadykeroles87/youth-meeting-app/main/public/sample.pptx",
+        fileType: "document",
+        category: "general",
         uploadedBy: servant1.id,
       },
       {

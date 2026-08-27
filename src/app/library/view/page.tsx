@@ -145,14 +145,32 @@ function FileViewerContent() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <a
-            href={fileUrl}
-            download
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch(proxyPath);
+                if (!res.ok) throw new Error("Download failed");
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                // Extract filename from URL
+                const urlParts = fileUrl.split("/");
+                a.download = decodeURIComponent(urlParts[urlParts.length - 1].split("?")[0]) || "file";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+              } catch {
+                // Fallback to direct link
+                window.open(fileUrl, "_blank");
+              }
+            }}
             className="p-1.5 rounded-lg text-stone-500 hover:text-amber-700 hover:bg-amber-50 transition-colors border border-stone-200"
             title="تحميل الملف"
           >
             <Download size={13} className="sm:w-[14px] sm:h-[14px]" />
-          </a>
+          </button>
         </div>
       </div>
 

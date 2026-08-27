@@ -172,11 +172,12 @@ export default function PptxViewer({ fileUrl }: { fileUrl: string }) {
       onTouchEnd={handleTouchEnd}
     >
       {/* Slide display */}
-      <div className="flex-1 min-h-0 flex items-center justify-center p-2">
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden">
         <img
           src={slides[currentSlide]}
           alt={`شريحة ${currentSlide + 1}`}
-          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          className="w-full h-full object-contain"
+          style={{ maxHeight: '100%', maxWidth: '100%' }}
         />
       </div>
 
