@@ -5,32 +5,48 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import {
-  FileText, Loader2, Download, ZoomIn, ZoomOut,
-  Maximize, Minimize, ChevronUp, ChevronDown
+  FileText, Loader2, ZoomIn, ZoomOut,
+  Maximize, Minimize, ChevronUp, ChevronDown, WifiOff, Wifi
 } from "lucide-react";
 
-// PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// PDF.js worker — local copy first (offline), then CDN fallback
+pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
   fileUrl: string;
+  /** Pre-loaded blob URL from useFileCache (for offline support) */
+  cachedBlobUrl?: string | null;
+  /** Whether the file was loaded from cache */
+  fromCache?: boolean;
   onError?: () => void;
 }
 
-export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
+export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showToolbar, setShowToolbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(cachedBlobUrl || null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Use window.innerWidth directly (this component is dynamically imported, no SSR)
-  const [pageWidth, setPageWidth] = useState<number>(window.innerWidth);
+  const [pageWidth, setPageWidth] = useState<number>(
+    typeof window !== "undefined" ? window.innerWidth : 800
+  );
 
+  // If we have a cached blob URL from parent, use it directly
   useEffect(() => {
+    if (cachedBlobUrl) {
+      setBlobUrl(cachedBlobUrl);
+    }
+  }, [cachedBlobUrl]);
+
+  // Only fetch if we don't have a cached blob URL
+  useEffect(() => {
+    if (cachedBlobUrl) return; // Already have cached data
+    
     let isMounted = true;
     let currentBlobUrl = "";
 
@@ -56,7 +72,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       isMounted = false;
       if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
     };
-  }, [fileUrl, onError]);
+  }, [fileUrl, onError, cachedBlobUrl]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -68,7 +84,7 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
         if (w > 0) setPageWidth(w - 16); // minimal padding allowance
-      } else {
+      } else if (typeof window !== "undefined") {
         setPageWidth(window.innerWidth - 16);
       }
     };
@@ -239,6 +255,17 @@ export default function PdfViewer({ fileUrl, onError }: PdfViewerProps) {
           }`}
           style={{ direction: "rtl" }}
         >
+          {/* Offline indicator */}
+          {fromCache && (
+            <>
+              <div className="flex items-center gap-1 px-1.5" title="محفوظ للعرض بدون إنترنت">
+                <WifiOff size={13} className="text-emerald-600" />
+                <span className="text-[10px] font-bold text-emerald-700">محفوظ</span>
+              </div>
+              <div className="w-px h-6 bg-stone-300 mx-0.5" />
+            </>
+          )}
+
           {/* Zoom controls */}
           <div className="flex items-center gap-1">
             <button onClick={zoomIn} className="p-2 text-stone-600 hover:bg-amber-50 hover:text-amber-600 rounded-full transition-colors active:scale-95" aria-label="تكبير">

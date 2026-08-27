@@ -38,11 +38,12 @@ const serwist = new Serwist({
   },
   runtimeCaching: [
     // Cache API routes with NetworkFirst strategy
-    // This ensures we get the fresh data when online, but fallback to cache when offline.
+    // Exclude /api/file-proxy because we cache large files manually in IndexedDB (useFileCache)
     {
-      matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/"),
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/") && !url.pathname.startsWith("/api/file-proxy"),
       handler: new NetworkFirst({
         cacheName: "api-cache-v2",
+        networkTimeoutSeconds: 3,
         matchOptions: {
           ignoreVary: true,
         },
@@ -60,6 +61,7 @@ const serwist = new Serwist({
       matcher: ({ request }: { request: Request }) => request.headers.get("RSC") === "1",
       handler: new NetworkFirst({
         cacheName: "rsc-cache-v2",
+        networkTimeoutSeconds: 3,
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
@@ -85,6 +87,7 @@ const serwist = new Serwist({
       },
       handler: new NetworkFirst({
         cacheName: "pages-cache-v2",
+        networkTimeoutSeconds: 3,
         matchOptions: {
           ignoreSearch: true,
         },
@@ -105,6 +108,19 @@ const serwist = new Serwist({
           new ExpirationPlugin({
             maxEntries: 1000,
             maxAgeSeconds: 90 * 24 * 60 * 60, // 90 days
+          }),
+        ],
+      }),
+    },
+    // Cache PDF worker
+    {
+      matcher: ({ url }: { url: URL }) => url.pathname.endsWith("pdf.worker.min.mjs"),
+      handler: new StaleWhileRevalidate({
+        cacheName: "pdf-worker-cache",
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 1,
+            maxAgeSeconds: 365 * 24 * 60 * 60, // 1 year
           }),
         ],
       }),

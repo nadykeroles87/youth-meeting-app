@@ -2,8 +2,9 @@
 
 import React, { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowRight, FileText, Loader2, Download } from "lucide-react";
+import { ArrowRight, FileText, Loader2, Download, WifiOff } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useFileCache } from "@/hooks/useFileCache";
 
 // Dynamically import viewers (no SSR - avoids DOMMatrix/window errors)
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -90,6 +91,8 @@ function FileViewerContent() {
   // Proxy URL (same-origin, avoids CORS)
   const proxyPath = `/api/file-proxy?type=${detectedType}&url=${encodeURIComponent(normalizedUrl)}`;
 
+  const { data, blobUrl, loading, error, fromCache, isOfflineReady } = useFileCache(proxyPath);
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -142,6 +145,12 @@ function FileViewerContent() {
             <span className="sm:hidden">رجوع</span>
           </button>
           <h1 className="font-bold text-stone-800 text-[11px] sm:text-xs truncate max-w-[120px] sm:max-w-[300px]">{title}</h1>
+          {isOfflineReady && (
+            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded text-[10px] font-bold" title="محفوظ للعرض بدون إنترنت">
+              <WifiOff size={10} />
+              <span className="hidden sm:inline">محفوظ</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -176,10 +185,28 @@ function FileViewerContent() {
 
       {/* ── Content Area ── */}
       <div className="flex-1 min-h-0 w-full relative">
-        {detectedType === "pdf" && <PdfViewer fileUrl={proxyPath} />}
-        {detectedType === "pptx" && <PptxViewer fileUrl={proxyPath} />}
-        {detectedType === "docx" && <DocxViewer fileUrl={proxyPath} />}
-        {detectedType === "xlsx" && <XlsxViewer fileUrl={proxyPath} />}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full py-32 text-center px-6">
+            <Loader2 size={32} className="animate-spin text-amber-600 mb-4" />
+            <h3 className="font-bold text-stone-800 text-base mb-2">جاري تجهيز الملف...</h3>
+            <p className="text-xs text-stone-500 mb-5">يرجى الانتظار بينما نقوم بتهيئة المستند للعرض.</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-full py-32 text-center px-6">
+            <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-4">
+              <FileText size={32} className="text-red-400" />
+            </div>
+            <h3 className="font-bold text-stone-800 text-base mb-2">فشل تحميل المستند</h3>
+            <p className="text-xs text-stone-500 mb-5">{error}</p>
+          </div>
+        ) : (
+          <>
+            {detectedType === "pdf" && <PdfViewer fileUrl={proxyPath} cachedBlobUrl={blobUrl} fromCache={fromCache} />}
+            {detectedType === "pptx" && <PptxViewer fileUrl={proxyPath} cachedData={data} fromCache={fromCache} />}
+            {detectedType === "docx" && <DocxViewer fileUrl={proxyPath} />}
+            {detectedType === "xlsx" && <XlsxViewer fileUrl={proxyPath} />}
+          </>
+        )}
       </div>
     </div>
   );

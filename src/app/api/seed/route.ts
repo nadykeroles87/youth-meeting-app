@@ -83,7 +83,7 @@ export async function POST() {
       {
         title: "كتاب صلوات الأجبية القبطية الكاملة 📖",
         description: "نسخة PDF شاملة لصلوات السواعي القبطية (باكر، الثالثة، السادسة، الغروب، النوم)",
-        fileUrl: "https://www.africau.edu/images/default/sample.pdf",
+        fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
         fileType: "pdf",
         category: "coptic_prayers",
         uploadedBy: servant1.id,
@@ -91,7 +91,7 @@ export async function POST() {
       {
         title: "كتاب ترانيم اجتماع الشباب 🎵",
         description: "كتيب الترانيم والصلوات الخاصة باجتماع منقوش على كفك",
-        fileUrl: "https://scholar.harvard.edu/files/torber/files/sample.pdf",
+        fileUrl: "https://raw.githubusercontent.com/nickmomrik/resume/master/resume.pdf",
         fileType: "pdf",
         category: "hymns",
         uploadedBy: servant1.id,
