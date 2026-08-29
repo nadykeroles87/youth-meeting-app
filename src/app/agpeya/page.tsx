@@ -185,7 +185,7 @@ export default function AgpeyaPage() {
     };
   }, [hourMeta]);
 
-  // Manual offline download trigger for the whole prayer
+  // Download single prayer for offline
   const downloadHourForOffline = async () => {
     if (typeof window === "undefined" || !("caches" in window)) return;
     setIsCaching(true);
@@ -198,20 +198,62 @@ export default function AgpeyaPage() {
       await cache.add(`/agpeya/${hourMeta.pdfFilename}`).catch(() => {});
       setCacheProgress({ current: 1, total: hourMeta.slidesCount + 1 });
 
-      // 2. Cache all slides
+      // 2. Cache slides
       for (let i = 1; i <= hourMeta.slidesCount; i++) {
         const url = `/agpeya/${hourMeta.imageFolder}/Slide${i}.JPG`;
         try {
-          await cache.add(url);
-        } catch (e) {
-          console.warn(`Failed to cache slide ${i}:`, e);
+          const match = await cache.match(url);
+          if (!match) await cache.add(url);
+        } catch {
+          // Ignore
         }
         setCacheProgress({ current: i + 1, total: hourMeta.slidesCount + 1 });
       }
 
       setIsHourCached(true);
     } catch (err) {
-      console.error("Cache error:", err);
+      console.error("Cache hour error:", err);
+    } finally {
+      setIsCaching(false);
+      setTimeout(() => setCacheProgress(null), 3000);
+    }
+  };
+
+  // Download ALL 7 prayers for offline
+  const downloadAllPrayersForOffline = async () => {
+    if (typeof window === "undefined" || !("caches" in window)) return;
+    setIsCaching(true);
+    let totalItems = 0;
+    HOURS.forEach((h) => (totalItems += h.slidesCount + 1));
+    setCacheProgress({ current: 0, total: totalItems });
+
+    try {
+      const cache = await caches.open("agpeya-cache-v2");
+      let count = 0;
+
+      for (const h of HOURS) {
+        // 1. Cache PDF first
+        await cache.add(`/agpeya/${h.pdfFilename}`).catch(() => {});
+        count++;
+        setCacheProgress({ current: count, total: totalItems });
+
+        // 2. Cache slides
+        for (let i = 1; i <= h.slidesCount; i++) {
+          const url = `/agpeya/${h.imageFolder}/Slide${i}.JPG`;
+          try {
+            const match = await cache.match(url);
+            if (!match) await cache.add(url);
+          } catch {
+            // Ignore individual slide error
+          }
+          count++;
+          setCacheProgress({ current: count, total: totalItems });
+        }
+      }
+
+      setIsHourCached(true);
+    } catch (err) {
+      console.error("Cache all error:", err);
     } finally {
       setIsCaching(false);
       setTimeout(() => setCacheProgress(null), 3000);
@@ -309,52 +351,54 @@ export default function AgpeyaPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
-            {/* Offline Cache Button */}
+            {/* Cache Current Prayer */}
             <button
               onClick={downloadHourForOffline}
               disabled={isCaching}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer border ${
+              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer border ${
                 isHourCached
                   ? "bg-emerald-600/90 text-white border-emerald-500 hover:bg-emerald-600"
                   : "bg-amber-600 hover:bg-amber-700 text-white border-amber-500"
               }`}
+              title="حفظ الصلاة الحالية للأوفلاين"
             >
               {isCaching ? (
                 <>
-                  <Loader2 size={14} className="animate-spin text-amber-200" />
-                  جاري الحفظ للأوفلاين ({cacheProgress?.current}/{cacheProgress?.total})...
+                  <Loader2 size={13} className="animate-spin text-amber-200" />
+                  جاري الحفظ ({cacheProgress?.current}/{cacheProgress?.total})...
                 </>
               ) : isHourCached ? (
                 <>
-                  <Check size={14} className="text-emerald-200" />
+                  <Check size={13} className="text-emerald-200" />
                   محفوظة للأوفلاين ✅
                 </>
               ) : (
                 <>
-                  <WifiOff size={14} className="text-amber-200" />
-                  حفظ الصلاة للأوفلاين
+                  <WifiOff size={13} className="text-amber-200" />
+                  حفظ الصلاة أوفلاين
                 </>
               )}
+            </button>
+
+            {/* Cache ALL 7 Prayers */}
+            <button
+              onClick={downloadAllPrayersForOffline}
+              disabled={isCaching}
+              className="px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer bg-amber-800/80 hover:bg-amber-700 text-amber-100 border border-amber-600/70"
+              title="حفظ السبع صلوات كاملة للأوفلاين"
+            >
+              <Download size={13} />
+              حفظ السبع صلوات
             </button>
 
             {/* Read as PDF link */}
             <Link
               href={`/library/view?url=${encodeURIComponent(`/agpeya/${hourMeta.pdfFilename}`)}&title=${encodeURIComponent(hourMeta.title)}&type=pdf`}
-              className="bg-amber-500 hover:bg-amber-600 text-amber-950 px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md border border-amber-400/50 cursor-pointer"
+              className="bg-amber-500 hover:bg-amber-600 text-amber-950 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md border border-amber-400/50 cursor-pointer"
             >
-              <FileText size={14} />
+              <FileText size={13} />
               قراءة كـ PDF
             </Link>
-
-            {/* Download PPTX */}
-            <a
-              href={`/agpeya/${encodeURIComponent(hourMeta.filename)}`}
-              download
-              className="p-2 rounded-2xl bg-amber-800/80 hover:bg-amber-700 text-amber-200 transition-all border border-amber-600/60"
-              title="تحميل ملف الباوربوينت"
-            >
-              <Download size={14} />
-            </a>
           </div>
         </div>
 

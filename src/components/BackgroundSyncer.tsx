@@ -16,6 +16,16 @@ const ENDPOINTS_TO_CACHE = [
   { url: "/api/followup?absentWeeks=2", key: "offline_cache_followup_absent_2_" },
 ];
 
+const AGPEYA_PDFS = [
+  "/agpeya/baker.pdf",
+  "/agpeya/third.pdf",
+  "/agpeya/sixth.pdf",
+  "/agpeya/ninth.pdf",
+  "/agpeya/sunset.pdf",
+  "/agpeya/noom.pdf",
+  "/agpeya/midnight.pdf",
+];
+
 export default function BackgroundSyncer() {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -31,7 +41,7 @@ export default function BackgroundSyncer() {
         return; // Already synced recently
       }
 
-      // Sequentially cache critical API endpoints with delay between requests
+      // 1. Cache critical API endpoints
       for (const { url, key } of ENDPOINTS_TO_CACHE) {
         if (isCancelled) break;
         try {
@@ -43,8 +53,24 @@ export default function BackgroundSyncer() {
         } catch {
           // Ignore offline / background prefetch errors
         }
-        // Small delay between requests to keep the network free for user interactions
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      // 2. Pre-cache Agpeya PDF prayers for 100% offline access
+      if ("caches" in window && !isCancelled) {
+        try {
+          const agpeyaCache = await caches.open("agpeya-cache-v2");
+          for (const pdfUrl of AGPEYA_PDFS) {
+            if (isCancelled) break;
+            const match = await agpeyaCache.match(pdfUrl);
+            if (!match) {
+              await agpeyaCache.add(pdfUrl).catch(() => {});
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+          }
+        } catch {
+          // Ignore cache errors
+        }
       }
 
       if (!isCancelled) {
