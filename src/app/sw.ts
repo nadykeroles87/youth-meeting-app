@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist, NetworkFirst, StaleWhileRevalidate, ExpirationPlugin, RangeRequestsPlugin } from "serwist";
+import { Serwist, NetworkFirst, StaleWhileRevalidate, CacheFirst, ExpirationPlugin, RangeRequestsPlugin } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -99,15 +99,15 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // Cache Agpeya static files (slide images, PPTX downloads)
+    // Cache Agpeya static files (slide images, PDF, PPTX downloads) with CacheFirst
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/agpeya/"),
-      handler: new StaleWhileRevalidate({
+      handler: new CacheFirst({
         cacheName: "agpeya-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 1000,
-            maxAgeSeconds: 90 * 24 * 60 * 60, // 90 days
+            maxAgeSeconds: 180 * 24 * 60 * 60, // 180 days
           }),
         ],
       }),
