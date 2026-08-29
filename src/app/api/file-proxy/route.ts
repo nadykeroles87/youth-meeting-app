@@ -15,11 +15,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    let fetchUrl = url;
-    if (url.startsWith("/")) {
-      fetchUrl = new URL(url, req.nextUrl.origin).toString();
+    let targetUrl = url;
+    if (targetUrl.startsWith("/")) {
+      targetUrl = new URL(targetUrl, req.nextUrl.origin).toString();
     }
-    const response = await fetch(fetchUrl);
+
+    const response = await fetch(targetUrl);
 
     if (!response.ok) {
       return NextResponse.json(
@@ -28,9 +29,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    let contentType = "application/octet-stream";
-    if (type === "pdf") {
+    const originContentType = response.headers.get("content-type");
+    let contentType = originContentType || "application/octet-stream";
+    if (type === "pdf" || targetUrl.toLowerCase().includes(".pdf")) {
       contentType = "application/pdf";
+    } else if (type === "pptx" || targetUrl.toLowerCase().includes(".pptx")) {
+      contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    } else if (type === "docx" || targetUrl.toLowerCase().includes(".docx")) {
+      contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    } else if (type === "xlsx" || targetUrl.toLowerCase().includes(".xlsx")) {
+      contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     }
 
     // Stream the response directly without buffering into memory
@@ -39,6 +47,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=86400",
+        "Access-Control-Allow-Origin": "*",
         // No Content-Disposition header at all - prevents download prompts
       },
     });

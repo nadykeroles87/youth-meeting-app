@@ -283,7 +283,16 @@ export default function LibraryPage() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => router.push(`/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(item.fileType)}`)}
+                          onClick={() => {
+                            let typeToUse: string = item.fileType || "pdf";
+                            const uLower = (item.fileUrl || "").toLowerCase();
+                            if (uLower.includes(".ppt")) typeToUse = "pptx";
+                            else if (uLower.includes(".pdf")) typeToUse = "pdf";
+                            else if (uLower.includes(".doc")) typeToUse = "docx";
+                            else if (uLower.includes(".xls") || uLower.includes(".csv")) typeToUse = "xlsx";
+                            
+                            router.push(`/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(typeToUse)}`);
+                          }}
                           className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                         >
                           <Eye size={13} />
@@ -427,9 +436,25 @@ export default function LibraryPage() {
                         type="file"
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {
-                            setSelectedFile(e.target.files[0]);
+                            const file = e.target.files[0];
+                            setSelectedFile(file);
                             setFormError(null);
-                            if (!form.title) setForm({ ...form, title: e.target.files[0].name.split(".")[0] });
+                            
+                            const ext = file.name.split(".").pop()?.toLowerCase() || "";
+                            const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+                            
+                            let detectedType = "pdf";
+                            if (ext === "pptx" || ext === "ppt" || ext === "docx" || ext === "doc" || ext === "xlsx" || ext === "xls") {
+                              detectedType = "document";
+                            } else if (ext === "mp4" || ext === "webm" || ext === "mov" || ext === "avi") {
+                              detectedType = "video";
+                            }
+
+                            setForm((prev) => ({
+                              ...prev,
+                              title: prev.title ? prev.title : nameWithoutExt,
+                              fileType: detectedType,
+                            }));
                           }
                         }}
                         className="hidden"

@@ -55,19 +55,26 @@ function FileViewerContent() {
 
   const fileUrl = searchParams.get("url") || "";
   const title = searchParams.get("title") || "عرض الملف";
+  const typeParam = searchParams.get("type")?.toLowerCase() || "";
 
   // Detect file type rigorously
   const urlLower = fileUrl.toLowerCase();
   
   let detectedType: FileExtensionType = "unknown";
-  if (urlLower.includes(".pdf")) {
-    detectedType = "pdf";
-  } else if (urlLower.includes(".ppt")) {
+  if (typeParam === "pptx" || urlLower.includes(".pptx") || urlLower.includes(".ppt")) {
     detectedType = "pptx";
-  } else if (urlLower.includes(".doc")) {
+  } else if (typeParam === "pdf" || urlLower.includes(".pdf")) {
+    detectedType = "pdf";
+  } else if (typeParam === "docx" || urlLower.includes(".docx") || urlLower.includes(".doc")) {
     detectedType = "docx";
-  } else if (urlLower.includes(".xls") || urlLower.includes(".csv")) {
+  } else if (typeParam === "xlsx" || urlLower.includes(".xlsx") || urlLower.includes(".xls") || urlLower.includes(".csv")) {
     detectedType = "xlsx";
+  } else if (typeParam === "document") {
+    // If generic document, check url or default to pptx/pdf
+    if (urlLower.includes(".ppt")) detectedType = "pptx";
+    else if (urlLower.includes(".doc")) detectedType = "docx";
+    else if (urlLower.includes(".xls")) detectedType = "xlsx";
+    else detectedType = "pdf";
   } else {
     detectedType = "pdf"; // Default fallback
   }

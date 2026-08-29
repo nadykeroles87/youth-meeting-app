@@ -28,32 +28,46 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showToolbar, setShowToolbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [blobUrl, setBlobUrl] = useState<string | null>(cachedBlobUrl || null);
+  const [fetchedBlobUrl, setFetchedBlobUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const blobUrl = cachedBlobUrl || fetchedBlobUrl;
 
   // Use window.innerWidth directly (this component is dynamically imported, no SSR)
   const [pageWidth, setPageWidth] = useState<number>(
     typeof window !== "undefined" ? window.innerWidth : 800
   );
 
-  // If we have a cached blob URL from parent, use it directly
+  // Only fetch if we don't have a cached blob URL
   useEffect(() => {
-    if (cachedBlobUrl) {
-      setBlobUrl(cachedBlobUrl);
-    }
-  }, [cachedBlobUrl]);
+    if (cachedBlobUrl) return; // Already have cached data
+    
+    let isMounted = true;
+    let currentBlobUrl = "";
 
-  // ── No more manual fetch to Blob ──
-  // We let react-pdf handle the file streaming, which avoids huge memory spikes
-  // for large PDFs (e.g. 50MB-100MB) by utilizing Range requests.
-  useEffect(() => {
-    if (cachedBlobUrl) {
-      setBlobUrl(cachedBlobUrl);
-    } else {
-      // Use the proxy URL directly
-      setBlobUrl(fileUrl);
-    }
-  }, [cachedBlobUrl, fileUrl]);
+    const loadPdf = async () => {
+      try {
+        const response = await fetch(fileUrl);
+        if (!response.ok) throw new Error("فشل تحميل الملف");
+        const blob = await response.blob();
+        currentBlobUrl = URL.createObjectURL(blob);
+        if (isMounted) setFetchedBlobUrl(currentBlobUrl);
+      } catch (err) {
+        console.error("PDF load error:", err);
+        if (isMounted) {
+          setLoadError("فشل تحميل الملف. يرجى التحقق من الاتصال بالإنترنت.");
+          if (onError) onError();
+        }
+      }
+    };
+    
+    loadPdf();
+
+    return () => {
+      isMounted = false;
+      if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+    };
+  }, [fileUrl, onError, cachedBlobUrl]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -184,12 +198,30 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
             </div>
             <h3 className="font-bold text-stone-800 text-base mb-2">فشل تحميل المستند</h3>
             <p className="text-xs text-stone-500 mb-5">{loadError}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setLoadError(null);
+                  setFetchedBlobUrl(null);
+                  fetch(fileUrl)
+                    .then((res) => res.blob())
+                    .then((b) => setFetchedBlobUrl(URL.createObjectURL(b)))
+                    .catch(() => setLoadError("تعذر إعادة تحميل الملف"));
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                إعادة المحاولة
+              </button>
+            </div>
           </div>
         )}
         {blobUrl && (
           <Document
             file={blobUrl}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            onLoadSuccess={({ numPages }) => {
+              setNumPages(numPages);
+              setLoadError(null);
+            }}
             onLoadError={(error) => {
               console.error("PDF load error:", error);
               setLoadError("لم نتمكن من قراءة الملف كـ PDF");
@@ -209,22 +241,22 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
               {Array.from({ length: numPages }, (_, i) => (
                 <div
                   key={`page_${i + 1}`}
-                ref={(el) => {
-                  if (el) pageRefs.current.set(i + 1, el);
-                }}
-                className="relative bg-white shadow-sm border border-stone-200"
-              >
-                <Page
-                  pageNumber={i + 1}
-                  width={scaledWidth}
-                  className="bg-white"
-                  renderAnnotationLayer={false}
-                  renderTextLayer={true}
-                />
-              </div>
-            ))}
-          </div>
-        </Document>
+                  ref={(el) => {
+                    if (el) pageRefs.current.set(i + 1, el);
+                  }}
+                  className="relative bg-white shadow-sm border border-stone-200"
+                >
+                  <Page
+                    pageNumber={i + 1}
+                    width={scaledWidth}
+                    className="bg-white"
+                    renderAnnotationLayer={false}
+                    renderTextLayer={true}
+                  />
+                </div>
+              ))}
+            </div>
+          </Document>
         )}
       </div>
 

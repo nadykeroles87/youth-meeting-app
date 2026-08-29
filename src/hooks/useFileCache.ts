@@ -85,8 +85,8 @@ interface UseFileCacheResult {
 export function useFileCache(fileUrl: string): UseFileCacheResult {
   const [data, setData] = useState<ArrayBuffer | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(fileUrl));
+  const [error, setError] = useState<string | null>(fileUrl ? null : "لا يوجد رابط للملف");
   const [fromCache, setFromCache] = useState(false);
   const [isOfflineReady, setIsOfflineReady] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
@@ -100,8 +100,6 @@ export function useFileCache(fileUrl: string): UseFileCacheResult {
 
   useEffect(() => {
     if (!fileUrl) {
-      setLoading(false);
-      setError("لا يوجد رابط للملف");
       return;
     }
 
@@ -114,6 +112,16 @@ export function useFileCache(fileUrl: string): UseFileCacheResult {
 
       const cacheKey = fileUrl;
 
+      // Helper to determine mime type
+      const getMimeType = (url: string) => {
+        const u = url.toLowerCase();
+        if (u.includes("type=pdf") || u.includes(".pdf")) return "application/pdf";
+        if (u.includes("type=pptx") || u.includes(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        if (u.includes("type=docx") || u.includes(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (u.includes("type=xlsx") || u.includes(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        return "application/octet-stream";
+      };
+
       // 1. Try loading from IndexedDB cache first
       try {
         const cached = await getCachedFile(cacheKey);
@@ -121,7 +129,8 @@ export function useFileCache(fileUrl: string): UseFileCacheResult {
           setData(cached);
           setFromCache(true);
           setIsOfflineReady(true);
-          const url = URL.createObjectURL(new Blob([cached]));
+          const mime = getMimeType(fileUrl);
+          const url = URL.createObjectURL(new Blob([cached], { type: mime }));
           cleanup();
           blobUrlRef.current = url;
           setBlobUrl(url);
@@ -133,7 +142,6 @@ export function useFileCache(fileUrl: string): UseFileCacheResult {
             if (response.ok && isMounted) {
               const freshData = await response.arrayBuffer();
               await cacheFile(cacheKey, freshData);
-              // Don't update state - user is already viewing the cached version
             }
           } catch {
             // Silently ignore background refresh failure
@@ -155,7 +163,8 @@ export function useFileCache(fileUrl: string): UseFileCacheResult {
         
         if (isMounted) {
           setData(arrayBuffer);
-          const url = URL.createObjectURL(new Blob([arrayBuffer]));
+          const mime = getMimeType(fileUrl);
+          const url = URL.createObjectURL(new Blob([arrayBuffer], { type: mime }));
           cleanup();
           blobUrlRef.current = url;
           setBlobUrl(url);

@@ -108,6 +108,58 @@ function parseTextProps(rPr: Element | null) {
   return { fontSize, fontBold, fontItalic, fontColor, fontFamily };
 }
 
+// Helper for resilient XML node querying across all browser XML parsers
+function queryXmlElements(root: Document | Element, ...tagNames: string[]): Element[] {
+  const results: Element[] = [];
+  const seen = new Set<Element>();
+
+  for (const tag of tagNames) {
+    // 1. Try getElementsByTagName
+    const list = root.getElementsByTagName(tag);
+    for (let i = 0; i < list.length; i++) {
+      if (!seen.has(list[i])) {
+        seen.add(list[i]);
+        results.push(list[i]);
+      }
+    }
+
+    // 2. Try tag without prefix (e.g., 'sp' instead of 'p:sp')
+    const local = tag.includes(":") ? tag.split(":")[1] : tag;
+    if (local !== tag) {
+      const localList = root.getElementsByTagName(local);
+      for (let i = 0; i < localList.length; i++) {
+        if (!seen.has(localList[i])) {
+          seen.add(localList[i]);
+          results.push(localList[i]);
+        }
+      }
+    }
+  }
+
+  // 3. Fallback to querySelectorAll
+  if (results.length === 0) {
+    try {
+      const escaped = tagNames.map(t => t.replace(":", "\\:")).join(", ");
+      const qList = root.querySelectorAll(escaped);
+      qList.forEach(el => {
+        if (!seen.has(el)) {
+          seen.add(el);
+          results.push(el);
+        }
+      });
+    } catch {
+      // Ignore querySelector syntax errors on namespaces
+    }
+  }
+
+  return results;
+}
+
+function queryFirstXmlElement(root: Document | Element, ...tagNames: string[]): Element | null {
+  const elements = queryXmlElements(root, ...tagNames);
+  return elements.length > 0 ? elements[0] : null;
+}
+
 // Parse a single slide XML into structured data
 async function parseSlide(
   slideXml: string,
@@ -124,19 +176,19 @@ async function parseSlide(
   let bgImage: string | null = null;
 
   // Parse background
-  const bgEl = doc.querySelector("bg, p\\:bg");
+  const bgEl = queryFirstXmlElement(doc, "p:bg", "bg");
   if (bgEl) {
-    const solidFill = bgEl.querySelector("solidFill, a\\:solidFill");
+    const solidFill = queryFirstXmlElement(bgEl, "a:solidFill", "solidFill");
     if (solidFill) {
       background = parseColor(solidFill, "#ffffff");
     }
-    const gradFill = bgEl.querySelector("gradFill, a\\:gradFill");
+    const gradFill = queryFirstXmlElement(bgEl, "a:gradFill", "gradFill");
     if (gradFill) {
-      const stops = gradFill.querySelectorAll("gs, a\\:gs");
+      const stops = queryXmlElements(gradFill, "a:gs", "gs");
       if (stops.length >= 2) {
         const colors: string[] = [];
         stops.forEach(stop => {
-          const fill = stop.querySelector("srgbClr, a\\:srgbClr");
+          const fill = queryFirstXmlElement(stop, "a:srgbClr", "srgbClr");
           if (fill) colors.push("#" + (fill.getAttribute("val") || "ffffff"));
         });
         if (colors.length >= 2) {
@@ -145,9 +197,9 @@ async function parseSlide(
       }
     }
     // Background image
-    const blipFill = bgEl.querySelector("blipFill blip, a\\:blipFill a\\:blip, p\\:bgPr a\\:blipFill a\\:blip");
-    if (blipFill) {
-      const rId = blipFill.getAttribute("r:embed") || blipFill.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed");
+    const blip = queryFirstXmlElement(bgEl, "a:blip", "blip");
+    if (blip) {
+      const rId = blip.getAttribute("r:embed") || blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed");
       if (rId && rels[rId]) {
         bgImage = mediaBlobs[rels[rId]] || null;
       }
@@ -155,15 +207,15 @@ async function parseSlide(
   }
 
   // Parse shapes (sp elements) — contains text and shape data
-  const shapes = doc.querySelectorAll("sp, p\\:sp");
+  const shapes = queryXmlElements(doc, "p:sp", "sp");
   shapes.forEach(shape => {
     // Position from spPr > xfrm
-    const xfrm = shape.querySelector("xfrm, a\\:xfrm, p\\:spPr a\\:xfrm");
+    const xfrm = queryFirstXmlElement(shape, "a:xfrm", "xfrm");
     let x = 0, y = 0, w = SLIDE_W, h = SLIDE_H;
     
     if (xfrm) {
-      const off = xfrm.querySelector("off, a\\:off");
-      const ext = xfrm.querySelector("ext, a\\:ext");
+      const off = queryFirstXmlElement(xfrm, "a:off", "off");
+      const ext = queryFirstXmlElement(xfrm, "a:ext", "ext");
       if (off) {
         x = parseInt(off.getAttribute("x") || "0");
         y = parseInt(off.getAttribute("y") || "0");
@@ -175,9 +227,9 @@ async function parseSlide(
     }
 
     // Parse text body
-    const txBody = shape.querySelector("txBody, p\\:txBody");
+    const txBody = queryFirstXmlElement(shape, "p:txBody", "txBody");
     if (txBody) {
-      const paragraphs = txBody.querySelectorAll("p, a\\:p");
+      const paragraphs = queryXmlElements(txBody, "a:p", "p");
       let combinedText = "";
       let mainFontSize = 18;
       let mainBold = false;
@@ -189,7 +241,7 @@ async function parseSlide(
 
       paragraphs.forEach((para, pIdx) => {
         // Paragraph alignment
-        const pPr = para.querySelector("pPr, a\\:pPr");
+        const pPr = queryFirstXmlElement(para, "a:pPr", "pPr");
         if (pPr) {
           const algn = pPr.getAttribute("algn");
           if (algn === "ctr") mainAlign = "center";
@@ -198,10 +250,10 @@ async function parseSlide(
           else if (algn === "just") mainAlign = "justify";
         }
 
-        const runs = para.querySelectorAll("r, a\\:r");
+        const runs = queryXmlElements(para, "a:r", "r");
         runs.forEach(run => {
-          const rPr = run.querySelector("rPr, a\\:rPr");
-          const t = run.querySelector("t, a\\:t");
+          const rPr = queryFirstXmlElement(run, "a:rPr", "rPr");
+          const t = queryFirstXmlElement(run, "a:t", "t");
           const text = t?.textContent || "";
           
           if (text.trim()) {
@@ -237,14 +289,14 @@ async function parseSlide(
   });
 
   // Parse picture elements
-  const pics = doc.querySelectorAll("pic, p\\:pic");
+  const pics = queryXmlElements(doc, "p:pic", "pic");
   pics.forEach(pic => {
-    const xfrm = pic.querySelector("xfrm, a\\:xfrm, p\\:spPr a\\:xfrm");
+    const xfrm = queryFirstXmlElement(pic, "a:xfrm", "xfrm");
     let x = 0, y = 0, w = SLIDE_W / 2, h = SLIDE_H / 2;
     
     if (xfrm) {
-      const off = xfrm.querySelector("off, a\\:off");
-      const ext = xfrm.querySelector("ext, a\\:ext");
+      const off = queryFirstXmlElement(xfrm, "a:off", "off");
+      const ext = queryFirstXmlElement(xfrm, "a:ext", "ext");
       if (off) {
         x = parseInt(off.getAttribute("x") || "0");
         y = parseInt(off.getAttribute("y") || "0");
@@ -255,7 +307,7 @@ async function parseSlide(
       }
     }
 
-    const blip = pic.querySelector("blip, a\\:blip");
+    const blip = queryFirstXmlElement(pic, "a:blip", "blip");
     if (blip) {
       const rId = blip.getAttribute("r:embed") || blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "embed");
       if (rId && rels[rId] && mediaBlobs[rels[rId]]) {
@@ -509,11 +561,22 @@ export default function PptxViewer({ fileUrl, cachedData, fromCache }: PptxViewe
   if (error || slides.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center w-full h-full bg-stone-900 p-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+        <div className="w-20 h-20 rounded-full bg-amber-900/40 border border-amber-600/30 flex items-center justify-center mb-4">
           <FileText size={32} className="text-amber-400" />
         </div>
-        <h3 className="font-bold text-white mb-2">عرض تقديمي</h3>
-        <p className="text-xs text-stone-400 mb-5">{error || "لا توجد شرائح في هذا الملف"}</p>
+        <h3 className="font-bold text-white text-base mb-2">عرض تقديمي PowerPoint</h3>
+        <p className="text-xs text-stone-400 max-w-md mb-6 leading-relaxed">
+          {error || "لم نتمكن من تحليل شرائح هذا الملف كـ PPTX. يمكنك تحميل الملف مباشرة وفتحه على جهازك."}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <a
+            href={fileUrl}
+            download
+            className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+          >
+            تحميل الملف لجهازك 📥
+          </a>
+        </div>
       </div>
     );
   }

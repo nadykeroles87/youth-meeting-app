@@ -47,22 +47,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "العنوان ورابط الملف مطلوبان" }, { status: 400 });
     }
 
-    const [item] = await db
-      .insert(mediaItems)
-      .values({
-        title: body.title,
-        description: body.description || null,
-        fileUrl: body.fileUrl,
-        fileType: body.fileType || "pdf",
-        category: body.category || "general",
-        uploadedBy: body.uploadedBy ? parseInt(body.uploadedBy) : null,
-      })
-      .returning();
+    let parsedUploadedBy = body.uploadedBy ? parseInt(body.uploadedBy) : null;
+    if (parsedUploadedBy && isNaN(parsedUploadedBy)) {
+      parsedUploadedBy = null;
+    }
+
+    let item;
+    try {
+      [item] = await db
+        .insert(mediaItems)
+        .values({
+          title: body.title,
+          description: body.description || null,
+          fileUrl: body.fileUrl,
+          fileType: body.fileType || "pdf",
+          category: body.category || "general",
+          uploadedBy: parsedUploadedBy,
+        })
+        .returning();
+    } catch (insertError: any) {
+      // If foreign key constraint fails on uploaded_by, retry with uploadedBy: null
+      if (parsedUploadedBy && (insertError?.code === "23503" || insertError?.message?.includes("foreign key") || insertError?.message?.includes("violates foreign key"))) {
+        [item] = await db
+          .insert(mediaItems)
+          .values({
+            title: body.title,
+            description: body.description || null,
+            fileUrl: body.fileUrl,
+            fileType: body.fileType || "pdf",
+            category: body.category || "general",
+            uploadedBy: null,
+          })
+          .returning();
+      } else {
+        throw insertError;
+      }
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to add media item" }, { status: 500 });
+    console.error("Failed to add media item:", error);
+    return NextResponse.json({ error: "فشل حفظ بيانات الملف في قاعدة البيانات" }, { status: 500 });
   }
 }
 

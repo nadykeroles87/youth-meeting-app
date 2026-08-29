@@ -43,16 +43,18 @@ export function useOfflineCache<T>({
 }: UseOfflineCacheOptions<T>): UseOfflineCacheResult<T> {
   const fullKey = CACHE_PREFIX + cacheKey;
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [isStale, setIsStale] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== "undefined" ? !navigator.onLine : false);
   const fetchFnRef = useRef(fetchFn);
-  fetchFnRef.current = fetchFn;
+
+  useEffect(() => {
+    fetchFnRef.current = fetchFn;
+  }, [fetchFn]);
 
   // Load cached data on mount
   useEffect(() => {
     if (!enabled) {
-      setLoading(false);
       return;
     }
 
@@ -100,7 +102,7 @@ export function useOfflineCache<T>({
     } catch (error) {
       // Fetch failed - we're probably offline
       console.warn("[OfflineCache] Fetch failed for", cacheKey, "- using cached data");
-      setIsOffline(!navigator.onLine);
+      setIsOffline(typeof navigator !== "undefined" ? !navigator.onLine : false);
     } finally {
       setLoading(false);
     }
@@ -127,9 +129,6 @@ export function useOfflineCache<T>({
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
-    // Check initial state
-    setIsOffline(!navigator.onLine);
 
     return () => {
       window.removeEventListener("online", handleOnline);

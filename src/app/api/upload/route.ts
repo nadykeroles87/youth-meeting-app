@@ -4,9 +4,6 @@ import { v2 as cloudinary } from "cloudinary";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
 
-// Large file uploads handled manually by formData()
-
-// Increase the maximum duration for uploads (useful on Vercel)
 export const maxDuration = 60;
 
 cloudinary.config({
@@ -35,101 +32,145 @@ export async function POST(req: NextRequest) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-    // Priority 1: Cloudinary (25GB free, supports all file types)
-    if (cloudName && apiKey && apiSecret && cloudName !== "YOUR_CLOUD_NAME_HERE") {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
-      const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: "youth-meeting-app/uploads",
-            resource_type: "auto",
-            access_mode: "public",
-            // Use original filename for better identification
-            public_id: `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_").replace(/\.[^/.]+$/, "")}`,
-          },
-          (error, uploaded) => {
-            if (error || !uploaded) {
-              console.error("Cloudinary upload error:", error);
-              reject(error || new Error("Cloudinary upload failed"));
-              return;
-            }
-            resolve({ secure_url: uploaded.secure_url });
-          }
-        );
-
-        uploadStream.end(buffer);
-      });
-
-      return NextResponse.json({
-        success: true,
-        fileUrl: result.secure_url,
-        fileName: file.name,
-        fileSize: file.size,
-        provider: "cloudinary",
-      });
-    }
-
-    // Priority 2: Vercel Blob (fallback)
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN ?? process.env.VERCEL_BLOB_READ_WRITE_TOKEN;
 
-    if (blobToken) {
-      const timestamp = Date.now();
-      const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-      const filename = `uploads/${timestamp}_${safeName}`;
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-      const blob = await put(filename, file, {
-        access: "public",
-        contentType: file.type || "application/octet-stream",
-      });
+    // Extract file extension and safe name
+    const originalName = file.name || "file";
+    const ext = path.extname(originalName).toLowerCase();
+    const rawBaseName = path.basename(originalName, ext);
+    const safeBaseName = rawBaseName.replace(/[^a-zA-Z0-9_-]/g, "_") || "upload";
+    const timestamp = Date.now();
+    const finalFileName = `${timestamp}_${safeBaseName}${ext}`;
 
-      return NextResponse.json({
-        success: true,
-        fileUrl: blob.url,
-        fileName: file.name,
-        fileSize: file.size,
-        provider: "vercel-blob",
-      });
+    const isPdf = ext === ".pdf";
+
+    // ── For PDF files: Prioritize Vercel Blob / Local storage to bypass Cloudinary's default PDF ACL lock ──
+    if (isPdf && blobToken) {
+      try {
+        const blob = await put(`uploads/${finalFileName}`, file, {
+          access: "public",
+          contentType: "application/pdf",
+        });
+
+        return NextResponse.json({
+          success: true,
+          fileUrl: blob.url,
+          fileName: file.name,
+          fileSize: file.size,
+          provider: "vercel-blob",
+        });
+      } catch (blobErr) {
+        console.warn("Vercel blob upload for PDF failed, trying Cloudinary/Local:", blobErr);
+      }
     }
 
-    // Priority 3: Local storage (development only)
-    if (process.env.NODE_ENV !== "production") {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const timestamp = Date.now();
-      const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-      const filename = `${timestamp}_${safeName}`;
+    // ── Cloudinary (Ideal for PPTX, Videos, Images, Docs) ──
+    if (cloudName && apiKey && apiSecret && cloudName !== "YOUR_CLOUD_NAME_HERE") {
+      try {
+        // Determine Cloudinary resource_type
+        let resourceType: "auto" | "raw" | "image" | "video" = "auto";
+        if (ext === ".pptx" || ext === ".ppt" || ext === ".docx" || ext === ".doc" || ext === ".xlsx" || ext === ".xls" || ext === ".txt") {
+          resourceType = "raw";
+        } else if (ext === ".mp4" || ext === ".webm" || ext === ".mov" || ext === ".avi") {
+          resourceType = "video";
+        } else if (ext === ".jpg" || ext === ".jpeg" || ext === ".png" || ext === ".webp" || ext === ".svg") {
+          resourceType = "image";
+        } else if (isPdf) {
+          resourceType = "raw";
+        }
+
+        const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: "youth-meeting-app/uploads",
+              resource_type: resourceType,
+              access_mode: "public",
+              // Keep extension in public_id so URL maintains .pdf / .pptx / etc.
+              public_id: `${timestamp}_${safeBaseName}${ext}`,
+              use_filename: true,
+              unique_filename: false,
+            },
+            (error, uploaded) => {
+              if (error || !uploaded) {
+                reject(error || new Error("Cloudinary upload failed"));
+                return;
+              }
+              resolve({ secure_url: uploaded.secure_url });
+            }
+          );
+
+          uploadStream.end(buffer);
+        });
+
+        if (result?.secure_url) {
+          return NextResponse.json({
+            success: true,
+            fileUrl: result.secure_url,
+            fileName: file.name,
+            fileSize: file.size,
+            provider: "cloudinary",
+          });
+        }
+      } catch (cloudErr) {
+        console.warn("Cloudinary upload failed, falling back to backup storage:", cloudErr);
+      }
+    }
+
+    // ── Vercel Blob (Fallback for non-PDFs) ──
+    if (blobToken) {
+      try {
+        const blob = await put(`uploads/${finalFileName}`, file, {
+          access: "public",
+          contentType: file.type || "application/octet-stream",
+        });
+
+        return NextResponse.json({
+          success: true,
+          fileUrl: blob.url,
+          fileName: file.name,
+          fileSize: file.size,
+          provider: "vercel-blob",
+        });
+      } catch (blobErr) {
+        console.warn("Vercel blob upload failed, trying local fallback:", blobErr);
+      }
+    }
+
+    // ── Priority 3: Local Storage (Fallback) ──
+    try {
       const uploadDir = path.join(process.cwd(), "public", "uploads");
       await mkdir(uploadDir, { recursive: true });
-      await writeFile(path.join(uploadDir, filename), buffer);
+      await writeFile(path.join(uploadDir, finalFileName), buffer);
 
       return NextResponse.json({
         success: true,
-        fileUrl: `/uploads/${filename}`,
+        fileUrl: `/uploads/${finalFileName}`,
         fileName: file.name,
         fileSize: file.size,
         provider: "local",
       });
+    } catch (localErr) {
+      console.error("Local file storage failed:", localErr);
     }
 
     return NextResponse.json({
-      error: "لم يتم إعداد مزود رفع الملفات. أضف CLOUDINARY_CLOUD_NAME و CLOUDINARY_API_KEY و CLOUDINARY_API_SECRET في إعدادات البيئة.",
+      error: "تعذر حفظ الملف على أي من مزودات التخزين المتاحة.",
     }, { status: 500 });
   } catch (error: any) {
-    console.error("Upload error:", error);
+    console.error("Upload handler error:", error);
     
-    // More specific error messages
     const message = error?.message || "";
     if (message.includes("size") || message.includes("limit") || message.includes("too large")) {
       return NextResponse.json({ 
-        error: "حجم الملف كبير جداً. حاول ملف أصغر أو اضغطه الأول." 
+        error: "حجم الملف كبير جداً. حاول تقليل حجم الملف أو ضغطه أولاً." 
       }, { status: 413 });
     }
     
     return NextResponse.json({ 
-      error: "فشل رفع الملف. تأكد من إعداد مزود التخزين (Cloudinary) في بيئة الإنتاج." 
+      error: "حدث خطأ غير متوقع أثناء رفع الملف. يرجى المحاولة مرة أخرى." 
     }, { status: 500 });
   }
 }

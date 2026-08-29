@@ -44,20 +44,17 @@ const memberNavItems = [
   { href: "/announcements", label: "الإعلانات", icon: Bell },
 ];
 
-export default function Sidebar() {
-  const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, role, logout } = useAuth();
+interface SidebarInnerProps {
+  user: any;
+  role: string | null;
+  navItems: { href: string; label: string; icon: any }[];
+  pathname: string;
+  onNavigate: () => void;
+  onLogout: () => void;
+}
 
-  const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
-  const baseServantItems = servantNavItems;
-  const navItems = role === "member"
-    ? memberNavItems
-    : isAdmin
-      ? [...baseServantItems, { href: "/servants", label: "إدارة الخدام", icon: Crown }]
-      : baseServantItems;
-
-  const SidebarContent = () => (
+function SidebarInner({ user, role, navItems, pathname, onNavigate, onLogout }: SidebarInnerProps) {
+  return (
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="p-4 border-b border-amber-700/30">
@@ -105,7 +102,7 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               prefetch={true}
-              onClick={() => setMobileOpen(false)}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 active
                   ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30 font-semibold"
@@ -125,8 +122,8 @@ export default function Sidebar() {
         {user ? (
           <button
             onClick={() => {
-              setMobileOpen(false);
-              logout();
+              onNavigate();
+              onLogout();
             }}
             className="w-full flex items-center justify-center gap-2 bg-red-900/40 hover:bg-red-800/60 text-red-200 hover:text-white py-2.5 px-4 rounded-xl text-xs font-medium transition-colors border border-red-700/30 cursor-pointer"
           >
@@ -140,6 +137,20 @@ export default function Sidebar() {
       </div>
     </div>
   );
+}
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, role, logout } = useAuth();
+
+  const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
+  const baseServantItems = servantNavItems;
+  const navItems = role === "member"
+    ? memberNavItems
+    : isAdmin
+      ? [...baseServantItems, { href: "/servants", label: "إدارة الخدام", icon: Crown }]
+      : baseServantItems;
 
   // Hide sidebar completely on full-screen viewer pages
   if (pathname.startsWith("/library/view")) {
@@ -177,7 +188,14 @@ export default function Sidebar() {
         >
           <X size={24} />
         </button>
-        <SidebarContent />
+        <SidebarInner
+          user={user}
+          role={role}
+          navItems={navItems}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+          onLogout={logout}
+        />
       </div>
 
       {/* Desktop Sidebar */}
@@ -185,7 +203,14 @@ export default function Sidebar() {
         className="hidden lg:flex flex-col w-64 min-h-screen fixed right-0 top-0 z-30"
         style={{ background: "linear-gradient(180deg, #3d2200 0%, #2d1a00 100%)" }}
       >
-        <SidebarContent />
+        <SidebarInner
+          user={user}
+          role={role}
+          navItems={navItems}
+          pathname={pathname}
+          onNavigate={() => setMobileOpen(false)}
+          onLogout={logout}
+        />
       </aside>
     </>
   );
