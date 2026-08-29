@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
 import {
   Library, FileText, Video, Link as LinkIcon, Download, Plus,
-  Trash2, Search, Loader2, X, UploadCloud, FileUp, Eye, ExternalLink
+  Trash2, Search, Loader2, X, UploadCloud, FileUp, Eye, ExternalLink, Presentation
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
@@ -200,7 +200,16 @@ export default function LibraryPage() {
               }`}
             >
               <FileText size={13} />
-              ملفات PDF
+              كتب PDF
+            </button>
+            <button
+              onClick={() => setFilterType("document")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                filterType === "document" ? "bg-amber-600 text-white" : "bg-amber-50 text-amber-900 border border-amber-200"
+              }`}
+            >
+              <Presentation size={13} />
+              عروض بوربوينت
             </button>
             <button
               onClick={() => setFilterType("video")}
@@ -228,8 +237,9 @@ export default function LibraryPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredItems.map((item) => {
-              const isPdf = item.fileType === "pdf";
-              const isVid = item.fileType === "video";
+              const isPdf = item.fileType === "pdf" || (item.fileUrl || "").toLowerCase().includes(".pdf");
+              const isVid = item.fileType === "video" || (item.fileUrl || "").includes("youtube") || (item.fileUrl || "").includes("youtu.be");
+              const isPptx = (item.fileUrl || "").toLowerCase().includes(".ppt") || item.fileType === "document";
 
               return (
                 <div
@@ -241,9 +251,10 @@ export default function LibraryPage() {
                       <div className={`p-3 rounded-2xl ${
                         isPdf ? "bg-rose-50 text-rose-600 border border-rose-100" :
                         isVid ? "bg-indigo-50 text-indigo-600 border border-indigo-100" :
+                        isPptx ? "bg-orange-50 text-orange-600 border border-orange-100" :
                         "bg-amber-50 text-amber-700 border border-amber-100"
                       }`}>
-                        {isPdf ? <FileText size={22} /> : isVid ? <Video size={22} /> : <LinkIcon size={22} />}
+                        {isPdf ? <FileText size={22} /> : isVid ? <Video size={22} /> : isPptx ? <Presentation size={22} /> : <LinkIcon size={22} />}
                       </div>
 
                       {isServant && (
@@ -259,7 +270,7 @@ export default function LibraryPage() {
 
                     <div>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200/60 inline-block mb-1">
-                        {isPdf ? "كتاب / PDF" : isVid ? "فيديو اجتماع" : "مستند"}
+                        {isPdf ? "كتاب / PDF" : isVid ? "فيديو اجتماع" : isPptx ? "عرض بوربوينت" : "مستند"}
                       </span>
                       <h3 className="font-bold text-stone-900 text-base leading-snug">{item.title}</h3>
                       {item.description && (
@@ -274,6 +285,18 @@ export default function LibraryPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
+                      {!isVid && (
+                        <a
+                          href={item.fileUrl}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-stone-500 hover:text-amber-800 hover:bg-amber-100/70 rounded-xl transition-all border border-amber-200/60 flex items-center justify-center cursor-pointer"
+                          title="تحميل الملف لجهازك"
+                        >
+                          <Download size={14} />
+                        </a>
+                      )}
                       {isVid ? (
                         <button
                           onClick={() => setActiveVideoUrl(item.fileUrl)}

@@ -25,6 +25,17 @@ export async function GET(req: NextRequest) {
       .leftJoin(servants, eq(mediaItems.uploadedBy, servants.id))
       .orderBy(desc(mediaItems.createdAt));
 
+    // Normalize any legacy or broken sample URLs
+    results = results.map((m: any) => {
+      if (m.fileUrl && m.fileUrl.includes("nickmomrik/resume/master/resume.pdf")) {
+        return {
+          ...m,
+          fileUrl: "https://pdfobject.com/pdf/sample.pdf",
+        };
+      }
+      return m;
+    });
+
     if (category) {
       results = results.filter((m: any) => m.category === category);
     }

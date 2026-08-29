@@ -636,7 +636,7 @@ export default function PptxViewer({ fileUrl, cachedData, fromCache }: PptxViewe
                 <div
                   className="w-full whitespace-pre-wrap break-words leading-snug"
                   style={{
-                    fontSize: `clamp(8px, ${item.fontSize * 0.12}vw, ${item.fontSize * 1.5}px)`,
+                    fontSize: `clamp(11px, ${item.fontSize * 0.9}px, 3.2vw)`,
                     fontWeight: item.fontBold ? 700 : 400,
                     fontStyle: item.fontItalic ? "italic" : "normal",
                     color: item.fontColor,

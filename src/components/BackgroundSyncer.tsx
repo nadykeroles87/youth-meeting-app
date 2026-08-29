@@ -22,8 +22,14 @@ export default function BackgroundSyncer() {
 
     let isCancelled = false;
 
-    const runSync = async () => {
+    const runSync = async (force = false) => {
       if (!navigator.onLine || isCancelled) return;
+
+      const lastSync = localStorage.getItem("last_bg_sync_time");
+      const oneHour = 60 * 60 * 1000;
+      if (!force && lastSync && Date.now() - parseInt(lastSync, 10) < oneHour) {
+        return; // Already synced recently
+      }
 
       // Sequentially cache critical API endpoints with delay between requests
       for (const { url, key } of ENDPOINTS_TO_CACHE) {
@@ -38,21 +44,25 @@ export default function BackgroundSyncer() {
           // Ignore offline / background prefetch errors
         }
         // Small delay between requests to keep the network free for user interactions
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      if (!isCancelled) {
+        localStorage.setItem("last_bg_sync_time", Date.now().toString());
       }
     };
 
-    // Delay start until 3 seconds after page load to prioritize initial render
+    // Delay start until 8 seconds after page load and when idle
     const timeoutId = setTimeout(() => {
       if ("requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(() => runSync(), { timeout: 10000 });
+        (window as any).requestIdleCallback(() => runSync(false), { timeout: 15000 });
       } else {
-        runSync();
+        runSync(false);
       }
-    }, 3000);
+    }, 8000);
 
     (window as any).triggerBackgroundSync = () => {
-      runSync();
+      runSync(true);
     };
 
     return () => {
