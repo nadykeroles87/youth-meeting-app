@@ -15,7 +15,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(url);
+    let fetchUrl = url;
+    if (url.startsWith("/")) {
+      fetchUrl = new URL(url, req.nextUrl.origin).toString();
+    }
+    const response = await fetch(fetchUrl);
 
     if (!response.ok) {
       return NextResponse.json(

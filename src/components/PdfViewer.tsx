@@ -43,36 +43,17 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
     }
   }, [cachedBlobUrl]);
 
-  // Only fetch if we don't have a cached blob URL
+  // ── No more manual fetch to Blob ──
+  // We let react-pdf handle the file streaming, which avoids huge memory spikes
+  // for large PDFs (e.g. 50MB-100MB) by utilizing Range requests.
   useEffect(() => {
-    if (cachedBlobUrl) return; // Already have cached data
-    
-    let isMounted = true;
-    let currentBlobUrl = "";
-
-    const loadPdf = async () => {
-      try {
-        const response = await fetch(fileUrl);
-        if (!response.ok) throw new Error("فشل تحميل الملف");
-        const blob = await response.blob();
-        currentBlobUrl = URL.createObjectURL(blob);
-        if (isMounted) setBlobUrl(currentBlobUrl);
-      } catch (err) {
-        console.error("PDF load error:", err);
-        if (isMounted) {
-          setLoadError("فشل تحميل الملف. يرجى التحقق من الاتصال بالإنترنت.");
-          if (onError) onError();
-        }
-      }
-    };
-    
-    loadPdf();
-
-    return () => {
-      isMounted = false;
-      if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-    };
-  }, [fileUrl, onError, cachedBlobUrl]);
+    if (cachedBlobUrl) {
+      setBlobUrl(cachedBlobUrl);
+    } else {
+      // Use the proxy URL directly
+      setBlobUrl(fileUrl);
+    }
+  }, [cachedBlobUrl, fileUrl]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);

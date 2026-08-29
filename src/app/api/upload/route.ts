@@ -4,12 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
 
-// Allow large file uploads (up to 100MB)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Large file uploads handled manually by formData()
 
 // Increase the maximum duration for uploads (useful on Vercel)
 export const maxDuration = 60;
