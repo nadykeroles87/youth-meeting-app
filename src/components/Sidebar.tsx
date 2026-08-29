@@ -20,7 +20,7 @@ import {
   User,
   Crown,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
 
 const servantNavItems = [
@@ -144,6 +144,11 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, role, logout } = useAuth();
 
+  // Auto-close mobile drawer on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
   const baseServantItems = servantNavItems;
   const navItems = role === "member"
@@ -159,34 +164,48 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 right-4 z-50 w-10 h-10 bg-amber-800 text-white rounded-xl flex items-center justify-center shadow-lg border border-amber-600"
-      >
-        <Menu size={20} />
-      </button>
+      {/* ── Mobile Top Sticky Navbar (Never overlaps page contents) ── */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 text-white border-b border-amber-800/60 z-40 flex items-center justify-between px-4 shadow-md">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 relative rounded-full overflow-hidden border border-amber-400 bg-amber-950 flex-shrink-0">
+            <Image src="/logo.png" alt="Logo" fill className="object-contain p-0.5" priority />
+          </div>
+          <div>
+            <span className="font-black text-xs text-white block leading-tight">منقوش على كفك</span>
+            <span className="text-[10px] text-amber-300 block">اجتماع الشباب</span>
+          </div>
+        </div>
 
-      {/* Mobile Overlay */}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 bg-amber-800/80 hover:bg-amber-700 active:scale-95 text-white rounded-xl flex items-center justify-center border border-amber-600/50 shadow-sm cursor-pointer"
+          aria-label="فتح القائمة الرئيسية"
+        >
+          <Menu size={20} />
+        </button>
+      </header>
+
+      {/* ── Mobile Backdrop Overlay ── */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-xs"
+          className="lg:hidden fixed inset-0 bg-black/60 z-50 backdrop-blur-xs transition-opacity duration-300"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Mobile Sidebar */}
+      {/* ── Mobile Off-Canvas Drawer (RTL Compliant) ── */}
       <div
-        className={`lg:hidden fixed top-0 right-0 h-full w-72 z-50 transition-transform duration-300 ${
-          mobileOpen ? "translate-x-0" : "translate-x-full"
+        className={`lg:hidden fixed top-0 right-0 h-full w-72 z-50 transition-all duration-300 shadow-2xl flex flex-col ${
+          mobileOpen ? "translate-x-0 opacity-100 pointer-events-auto" : "translate-x-full opacity-0 pointer-events-none"
         }`}
         style={{ background: "linear-gradient(180deg, #3d2200 0%, #2d1a00 100%)" }}
       >
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute top-4 left-4 text-amber-300 hover:text-white"
+          className="absolute top-4 left-4 p-1.5 text-amber-300 hover:text-white bg-amber-900/60 rounded-xl border border-amber-700/50 cursor-pointer z-10"
+          aria-label="إغلاق القائمة"
         >
-          <X size={24} />
+          <X size={20} />
         </button>
         <SidebarInner
           user={user}
@@ -198,7 +217,7 @@ export default function Sidebar() {
         />
       </div>
 
-      {/* Desktop Sidebar */}
+      {/* ── Desktop Sidebar ── */}
       <aside
         className="hidden lg:flex flex-col w-64 min-h-screen fixed right-0 top-0 z-30"
         style={{ background: "linear-gradient(180deg, #3d2200 0%, #2d1a00 100%)" }}

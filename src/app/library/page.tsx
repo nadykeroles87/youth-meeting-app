@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import PageWrapper from "@/components/PageWrapper";
 import {
   Library, FileText, Video, Link as LinkIcon, Download, Plus,
@@ -241,6 +242,15 @@ export default function LibraryPage() {
               const isVid = item.fileType === "video" || (item.fileUrl || "").includes("youtube") || (item.fileUrl || "").includes("youtu.be");
               const isPptx = (item.fileUrl || "").toLowerCase().includes(".ppt") || item.fileType === "document";
 
+              let typeToUse: string = item.fileType || "pdf";
+              const uLower = (item.fileUrl || "").toLowerCase();
+              if (uLower.includes(".ppt")) typeToUse = "pptx";
+              else if (uLower.includes(".pdf")) typeToUse = "pdf";
+              else if (uLower.includes(".doc")) typeToUse = "docx";
+              else if (uLower.includes(".xls") || uLower.includes(".csv")) typeToUse = "xlsx";
+
+              const viewUrl = `/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(typeToUse)}`;
+
               return (
                 <div
                   key={item.id}
@@ -272,7 +282,18 @@ export default function LibraryPage() {
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200/60 inline-block mb-1">
                         {isPdf ? "كتاب / PDF" : isVid ? "فيديو اجتماع" : isPptx ? "عرض بوربوينت" : "مستند"}
                       </span>
-                      <h3 className="font-bold text-stone-900 text-base leading-snug">{item.title}</h3>
+                      {isVid ? (
+                        <h3
+                          onClick={() => setActiveVideoUrl(item.fileUrl)}
+                          className="font-bold text-stone-900 text-base leading-snug cursor-pointer hover:text-amber-700"
+                        >
+                          {item.title}
+                        </h3>
+                      ) : (
+                        <Link href={viewUrl} className="font-bold text-stone-900 text-base leading-snug block hover:text-amber-700">
+                          {item.title}
+                        </Link>
+                      )}
                       {item.description && (
                         <p className="text-xs text-stone-600 mt-1 leading-relaxed line-clamp-2">{item.description}</p>
                       )}
@@ -305,22 +326,13 @@ export default function LibraryPage() {
                           مشاهدة الفيديو 🎬
                         </button>
                       ) : (
-                        <button
-                          onClick={() => {
-                            let typeToUse: string = item.fileType || "pdf";
-                            const uLower = (item.fileUrl || "").toLowerCase();
-                            if (uLower.includes(".ppt")) typeToUse = "pptx";
-                            else if (uLower.includes(".pdf")) typeToUse = "pdf";
-                            else if (uLower.includes(".doc")) typeToUse = "docx";
-                            else if (uLower.includes(".xls") || uLower.includes(".csv")) typeToUse = "xlsx";
-                            
-                            router.push(`/library/view?url=${encodeURIComponent(item.fileUrl)}&title=${encodeURIComponent(item.title)}&type=${encodeURIComponent(typeToUse)}`);
-                          }}
-                          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                        <Link
+                          href={viewUrl}
+                          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm"
                         >
                           <Eye size={13} />
                           فتح الملف
-                        </button>
+                        </Link>
                       )}
                     </div>
                   </div>
