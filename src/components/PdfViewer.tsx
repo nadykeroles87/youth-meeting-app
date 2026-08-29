@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import {
   FileText, Loader2, ZoomIn, ZoomOut,
   Maximize, Minimize, ChevronLeft, ChevronRight,
-  WifiOff, Layers, BookOpen, Download
+  WifiOff, Layers, BookOpen, StretchHorizontal
 } from "lucide-react";
 
 // PDF.js worker — local copy first (offline), then CDN fallback
@@ -34,9 +34,12 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
 
   const blobUrl = cachedBlobUrl || fetchedBlobUrl;
 
-  const [containerWidth, setContainerWidth] = useState<number>(
-    typeof window !== "undefined" ? Math.min(window.innerWidth - 32, 900) : 800
-  );
+  const [containerWidth, setContainerWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 640 ? window.innerWidth : Math.min(window.innerWidth - 32, 1000);
+    }
+    return 800;
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -74,14 +77,26 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
     };
   }, [fileUrl, onError, cachedBlobUrl]);
 
-  // Responsive width measurement
+  // Responsive width measurement - fills 100% on mobile
   useEffect(() => {
     const measure = () => {
       if (containerRef.current) {
         const w = containerRef.current.clientWidth;
-        if (w > 0) setContainerWidth(Math.max(w - 24, 280));
+        if (w > 0) {
+          // On mobile (< 640px), fill 100% of container with zero padding
+          // On desktop (>= 640px), max comfortable width up to 1000px
+          if (w < 640) {
+            setContainerWidth(w);
+          } else {
+            setContainerWidth(Math.min(w - 32, 1000));
+          }
+        }
       } else if (typeof window !== "undefined") {
-        setContainerWidth(Math.min(window.innerWidth - 32, 900));
+        if (window.innerWidth < 640) {
+          setContainerWidth(window.innerWidth);
+        } else {
+          setContainerWidth(Math.min(window.innerWidth - 32, 1000));
+        }
       }
     };
 
@@ -146,7 +161,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
 
     // Horizontal swipe threshold
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 45) {
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
       if (deltaX < 0) {
         // Swipe left -> Next Page (in RTL context)
         setCurrentPage((c) => Math.min(numPages, c + 1));
@@ -160,11 +175,13 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
   };
 
   // Zoom controls
-  const zoomIn = () => setScale((s) => Math.min(s + 0.2, 2.5));
+  const zoomIn = () => setScale((s) => Math.min(s + 0.2, 3.0));
   const zoomOut = () => setScale((s) => Math.max(s - 0.2, 0.6));
-  const resetZoom = () => setScale(1.0);
+  const fitWidth = () => setScale(1.0);
 
-  const scaledWidth = Math.min(containerWidth * scale, 1400);
+  const isMobile = containerWidth < 640;
+  const baseWidth = isMobile ? containerWidth : Math.min(containerWidth, 1000);
+  const scaledWidth = Math.round(baseWidth * scale);
 
   // Auto-hide toolbar timer
   useEffect(() => {
@@ -194,23 +211,23 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
   return (
     <div
       ref={viewerRef}
-      className={`flex flex-col h-full w-full bg-stone-900 overflow-hidden relative select-none ${
+      className={`flex flex-col h-full w-full bg-stone-950 overflow-hidden relative select-none ${
         isFullscreen ? "fixed inset-0 z-[300]" : ""
       }`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* ── Main Content Area ── */}
+      {/* ── Main Content Area (Edge-to-Edge on Mobile) ── */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth bg-stone-900 flex items-center justify-center p-2 sm:p-4"
+        className="flex-1 overflow-x-auto overflow-y-auto scroll-smooth bg-stone-950 flex items-center justify-center p-0 sm:p-4"
         style={{
           WebkitOverflowScrolling: "touch",
         }}
       >
         {!blobUrl && !loadError && (
           <div className="flex flex-col items-center justify-center h-full py-24 text-center">
-            <div className="w-14 h-14 rounded-full bg-stone-800 flex items-center justify-center mb-3 border border-stone-700">
+            <div className="w-14 h-14 rounded-full bg-stone-900 flex items-center justify-center mb-3 border border-stone-800">
               <Loader2 size={24} className="animate-spin text-amber-500" />
             </div>
             <p className="text-xs font-bold text-stone-300">جاري جلب المستند...</p>
@@ -254,7 +271,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
             }}
             loading={
               <div className="flex flex-col items-center justify-center h-full py-24 text-center">
-                <div className="w-14 h-14 rounded-full bg-stone-800 flex items-center justify-center mb-3 border border-stone-700">
+                <div className="w-14 h-14 rounded-full bg-stone-900 flex items-center justify-center mb-3 border border-stone-800">
                   <Loader2 size={24} className="animate-spin text-amber-500" />
                 </div>
                 <p className="text-xs font-bold text-stone-300">جاري تهيئة صفحات الـ PDF...</p>
@@ -262,19 +279,20 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
             }
             error={null}
           >
-            {/* ── Single Page Mode (Ultra-Fast, Zero Lag) ── */}
+            {/* ── Single Page Mode (Ultra-Fast, Zero Lag, 100% Screen Width) ── */}
             {viewMode === "single" && numPages > 0 && (
-              <div className="flex flex-col items-center justify-center w-full min-h-full py-2">
-                <div className="relative bg-white shadow-2xl rounded-lg overflow-hidden border border-stone-800 transition-transform duration-200">
+              <div className="flex flex-col items-center justify-center w-full min-h-full p-0 sm:py-2">
+                <div className="relative bg-white shadow-2xl overflow-hidden sm:rounded-lg border-0 sm:border sm:border-stone-800 transition-transform duration-200 w-full flex justify-center">
                   <Page
                     pageNumber={currentPage}
                     width={scaledWidth}
                     renderAnnotationLayer={false}
                     renderTextLayer={false}
+                    className="max-w-full flex justify-center"
                     loading={
                       <div
                         style={{ width: scaledWidth, height: scaledWidth * 1.35 }}
-                        className="flex items-center justify-center bg-stone-800 text-stone-400 text-xs font-bold"
+                        className="flex items-center justify-center bg-stone-900 text-stone-400 text-xs font-bold"
                       >
                         <Loader2 size={20} className="animate-spin text-amber-500" />
                       </div>
@@ -286,7 +304,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
 
             {/* ── Continuous Scroll Mode (Virtualized Window Rendering) ── */}
             {viewMode === "continuous" && numPages > 0 && (
-              <div className="flex flex-col items-center py-4 gap-4 w-full">
+              <div className="flex flex-col items-center py-2 sm:py-4 gap-2 sm:gap-4 w-full">
                 {Array.from({ length: numPages }, (_, i) => {
                   const pageNum = i + 1;
                   // Only render active page +/- 2 to prevent memory bloat and lag
@@ -296,8 +314,8 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
                     <div
                       key={`page_${pageNum}`}
                       id={`pdf_page_${pageNum}`}
-                      className="relative bg-white shadow-xl rounded-lg overflow-hidden border border-stone-800 min-h-[200px]"
-                      style={{ minWidth: `${Math.min(scaledWidth, containerWidth)}px` }}
+                      className="relative bg-white shadow-xl sm:rounded-lg overflow-hidden border-0 sm:border sm:border-stone-800 min-h-[200px] w-full flex justify-center"
+                      style={{ minWidth: isMobile ? "100%" : `${Math.min(scaledWidth, containerWidth)}px` }}
                     >
                       {isNear ? (
                         <Page
@@ -305,10 +323,11 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
                           width={scaledWidth}
                           renderAnnotationLayer={false}
                           renderTextLayer={false}
+                          className="max-w-full flex justify-center"
                           loading={
                             <div
                               style={{ width: scaledWidth, height: scaledWidth * 1.35 }}
-                              className="flex items-center justify-center bg-stone-800 text-stone-400 text-xs font-bold"
+                              className="flex items-center justify-center bg-stone-900 text-stone-400 text-xs font-bold"
                             >
                               صفحة {pageNum}
                             </div>
@@ -317,7 +336,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
                       ) : (
                         <div
                           style={{ width: scaledWidth, height: scaledWidth * 1.35 }}
-                          className="flex flex-col items-center justify-center bg-stone-800/80 text-stone-400 text-xs font-bold border border-dashed border-stone-700 rounded-lg cursor-pointer hover:bg-stone-800"
+                          className="flex flex-col items-center justify-center bg-stone-900/80 text-stone-400 text-xs font-bold border border-dashed border-stone-800 rounded-lg cursor-pointer hover:bg-stone-900"
                           onClick={() => setCurrentPage(pageNum)}
                         >
                           <FileText size={24} className="mb-2 text-stone-500 opacity-50" />
@@ -339,18 +358,18 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
           <button
             onClick={() => setCurrentPage((c) => Math.max(1, c - 1))}
             disabled={currentPage <= 1}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 disabled:opacity-20 text-white rounded-full transition-all z-20 backdrop-blur-xs cursor-pointer"
+            className="absolute left-1 sm:left-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 disabled:opacity-15 text-white rounded-full transition-all z-20 backdrop-blur-xs cursor-pointer shadow-lg"
             title="الصفحة السابقة"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
           </button>
           <button
             onClick={() => setCurrentPage((c) => Math.min(numPages, c + 1))}
             disabled={currentPage >= numPages}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 bg-black/50 hover:bg-black/80 disabled:opacity-20 text-white rounded-full transition-all z-20 backdrop-blur-xs cursor-pointer"
+            className="absolute right-1 sm:right-3 top-1/2 -translate-y-1/2 p-2.5 sm:p-3 bg-black/60 hover:bg-black/85 disabled:opacity-15 text-white rounded-full transition-all z-20 backdrop-blur-xs cursor-pointer shadow-lg"
             title="الصفحة التالية"
           >
-            <ChevronRight size={22} />
+            <ChevronRight size={20} className="sm:w-6 sm:h-6" />
           </button>
         </>
       )}
@@ -358,7 +377,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
       {/* ── Floating Minimalist Control Pill ── */}
       {numPages > 0 && (
         <div
-          className={`absolute bottom-4 left-1/2 -translate-x-1/2 bg-stone-900/95 backdrop-blur-md text-white shadow-2xl border border-stone-700/80 rounded-full flex items-center gap-1 sm:gap-2 px-3 py-1.5 sm:py-2 transition-all duration-300 z-30 max-w-[95vw] ${
+          className={`absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 bg-stone-900/95 backdrop-blur-md text-white shadow-2xl border border-stone-700/80 rounded-full flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 transition-all duration-300 z-30 max-w-[96vw] ${
             showToolbar ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0 pointer-events-none"
           }`}
           style={{ direction: "rtl" }}
@@ -366,7 +385,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
           {/* Offline Badge */}
           {fromCache && (
             <>
-              <div className="flex items-center gap-1 px-1.5" title="محفوظ للعرض بدون إنترنت">
+              <div className="flex items-center gap-1 px-1" title="محفوظ للعرض بدون إنترنت">
                 <WifiOff size={13} className="text-emerald-400" />
                 <span className="text-[10px] font-bold text-emerald-300 hidden sm:inline">محفوظ</span>
               </div>
@@ -382,7 +401,18 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
             }`}
             title={viewMode === "single" ? "عرض صفحة بصفحة (سريع)" : "عرض تمرير مستمر"}
           >
-            {viewMode === "single" ? <BookOpen size={16} /> : <Layers size={16} />}
+            {viewMode === "single" ? <BookOpen size={15} /> : <Layers size={15} />}
+          </button>
+
+          {/* Fit to Screen / Reset Zoom */}
+          <button
+            onClick={fitWidth}
+            className={`p-1.5 sm:p-2 rounded-full transition-colors active:scale-95 ${
+              scale === 1.0 ? "text-amber-400 bg-amber-950/40" : "text-stone-300 hover:bg-stone-800"
+            }`}
+            title="ملء عرض الشاشة (100%)"
+          >
+            <StretchHorizontal size={15} />
           </button>
 
           <div className="w-px h-5 bg-stone-700 mx-0.5" />
@@ -395,7 +425,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
               aria-label="تكبير"
               title="تكبير"
             >
-              <ZoomIn size={16} />
+              <ZoomIn size={15} />
             </button>
             <button
               onClick={zoomOut}
@@ -403,7 +433,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
               aria-label="تصغير"
               title="تصغير"
             >
-              <ZoomOut size={16} />
+              <ZoomOut size={15} />
             </button>
           </div>
 
@@ -426,9 +456,9 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
                   }
                 }
               }}
-              className="w-10 text-center bg-stone-800 border border-stone-700 rounded-lg py-0.5 text-amber-300 font-bold text-xs outline-none"
+              className="w-9 sm:w-10 text-center bg-stone-800 border border-stone-700 rounded-lg py-0.5 text-amber-300 font-bold text-xs outline-none"
             />
-            <span className="text-stone-400 font-bold text-[11px]">/ {numPages}</span>
+            <span className="text-stone-400 font-bold text-[10px] sm:text-[11px]">/ {numPages}</span>
           </div>
 
           <div className="w-px h-5 bg-stone-700 mx-0.5" />
@@ -440,7 +470,7 @@ export default function PdfViewer({ fileUrl, cachedBlobUrl, fromCache, onError }
             aria-label="ملء الشاشة"
             title="ملء الشاشة"
           >
-            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            {isFullscreen ? <Minimize size={15} /> : <Maximize size={15} />}
           </button>
         </div>
       )}
