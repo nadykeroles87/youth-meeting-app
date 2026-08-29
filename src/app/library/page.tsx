@@ -144,7 +144,7 @@ export default function LibraryPage() {
 
   return (
     <PageWrapper>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-6xl mx-auto w-full min-w-0">
 
         {/* ── Header ── */}
         <div className="bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

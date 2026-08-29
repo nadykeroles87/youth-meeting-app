@@ -20,7 +20,7 @@ import {
   User,
   Crown,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "./AuthProvider";
 
 const servantNavItems = [
@@ -144,6 +144,11 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, role, logout } = useAuth();
 
+  // Auto-close sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   const isAdmin = role === "servant" && (user as any)?.servantRole === "admin";
   const baseServantItems = servantNavItems;
   const navItems = role === "member"
@@ -162,31 +167,35 @@ export default function Sidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 right-4 z-50 w-10 h-10 bg-amber-800 text-white rounded-xl flex items-center justify-center shadow-lg border border-amber-600"
+        className="lg:hidden fixed top-4 right-4 z-40 w-10 h-10 bg-amber-800 text-white rounded-xl flex items-center justify-center shadow-lg border border-amber-600 cursor-pointer"
+        aria-label="فتح القائمة"
       >
         <Menu size={20} />
       </button>
 
       {/* Mobile Overlay */}
-      {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-xs"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile Sidebar */}
       <div
-        className={`lg:hidden fixed top-0 right-0 h-full w-72 z-50 transition-transform duration-300 ${
-          mobileOpen ? "translate-x-0" : "translate-x-full"
+        className={`lg:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-xs transition-opacity duration-300 ${
+          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      {/* Mobile Sidebar Drawer */}
+      <div
+        className={`lg:hidden fixed top-0 right-0 h-full w-72 z-50 transition-all duration-300 ease-in-out ${
+          mobileOpen
+            ? "translate-x-0 opacity-100 pointer-events-auto visible shadow-2xl"
+            : "translate-x-full opacity-0 pointer-events-none invisible"
         }`}
         style={{ background: "linear-gradient(180deg, #3d2200 0%, #2d1a00 100%)" }}
       >
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute top-4 left-4 text-amber-300 hover:text-white"
+          className="absolute top-4 left-4 text-amber-300 hover:text-white p-2 cursor-pointer"
+          aria-label="إغلاق القائمة"
         >
-          <X size={24} />
+          <X size={22} />
         </button>
         <SidebarInner
           user={user}
