@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import PageWrapper from "@/components/PageWrapper";
-import Link from "next/link";
 import {
-  BookOpen, Sun, Sunset, Moon, Clock, Sparkles,
-  Download, ChevronRight, ChevronLeft, Presentation, Check,
-  Maximize, Minimize, Wifi, WifiOff, Loader2, RefreshCw, FileText
+  BookOpen, Sun, Sunset, Moon, Clock, ZoomIn, ZoomOut, Sparkles,
+  Download, ChevronRight, ChevronLeft, Presentation, Check, Maximize, Minimize
 } from "lucide-react";
 import agpeyaLinksData from "@/data/agpeya_links.json";
 
@@ -21,7 +19,6 @@ type PrayerMetadata = {
   filename: string;
   imageFolder: string;
   slidesCount: number;
-  pdfFilename: string;
 };
 
 const HOURS: PrayerMetadata[] = [
@@ -34,7 +31,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "00 باكر.pptx",
     imageFolder: "baker",
     slidesCount: 79,
-    pdfFilename: "baker.pdf",
   },
   {
     id: "third",
@@ -45,7 +41,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "01 الساعة الثالثة.pptx",
     imageFolder: "third",
     slidesCount: 51,
-    pdfFilename: "third.pdf",
   },
   {
     id: "sixth",
@@ -56,7 +51,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "02 الساعة السادسة.pptx",
     imageFolder: "sixth",
     slidesCount: 52,
-    pdfFilename: "sixth.pdf",
   },
   {
     id: "ninth",
@@ -67,7 +61,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "03 الساعة التاسعة.pptx",
     imageFolder: "ninth",
     slidesCount: 50,
-    pdfFilename: "ninth.pdf",
   },
   {
     id: "sunset",
@@ -78,7 +71,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "04 الغروب.pptx",
     imageFolder: "sunset",
     slidesCount: 44,
-    pdfFilename: "sunset.pdf",
   },
   {
     id: "noom",
@@ -89,7 +81,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "05 النوم.pptx",
     imageFolder: "noom",
     slidesCount: 55,
-    pdfFilename: "noom.pdf",
   },
   {
     id: "midnight",
@@ -100,7 +91,6 @@ const HOURS: PrayerMetadata[] = [
     filename: "06 نصف الليل.pptx",
     imageFolder: "midnight",
     slidesCount: 159,
-    pdfFilename: "midnight.pdf",
   },
 ];
 
@@ -110,155 +100,11 @@ export default function AgpeyaPage() {
   const [viewMode, setViewMode] = useState<"slides" | "all">("slides");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [imageError, setImageError] = useState(false);
-
-  // Offline caching states
-  const [isCaching, setIsCaching] = useState(false);
-  const [cacheProgress, setCacheProgress] = useState<{ current: number; total: number } | null>(null);
-  const [isHourCached, setIsHourCached] = useState<boolean>(false);
-
+  
   const viewerRef = useRef<HTMLDivElement>(null);
 
   const hourMeta = HOURS.find((h) => h.id === selectedHourKey) || HOURS[0];
   const hourLinks = (agpeyaLinksData as any)[selectedHourKey];
-
-  // Check if current prayer is cached
-  const checkCacheStatus = useCallback(async () => {
-    if (typeof window === "undefined" || !("caches" in window)) return;
-    try {
-      const cache = await caches.open("agpeya-cache-v2");
-      // Check first slide and PDF
-      const slide1 = await cache.match(`/agpeya/${hourMeta.imageFolder}/Slide1.JPG`);
-      const pdf = await cache.match(`/agpeya/${hourMeta.pdfFilename}`);
-      setIsHourCached(!!slide1 || !!pdf);
-    } catch {
-      setIsHourCached(false);
-    }
-  }, [hourMeta]);
-
-  useEffect(() => {
-    checkCacheStatus();
-    setImageError(false);
-  }, [selectedHourKey, checkCacheStatus]);
-
-  // Background caching of current prayer slides (low priority)
-  useEffect(() => {
-    if (typeof window === "undefined" || !("caches" in window) || !navigator.onLine) return;
-
-    let isCancelled = false;
-
-    const prefetchSlides = async () => {
-      try {
-        const cache = await caches.open("agpeya-cache-v2");
-        // Always pre-cache the light PDF version first
-        const pdfUrl = `/agpeya/${hourMeta.pdfFilename}`;
-        const hasPdf = await cache.match(pdfUrl);
-        if (!hasPdf) {
-          cache.add(pdfUrl).catch(() => {});
-        }
-
-        // Preload first 5 slides immediately
-        for (let i = 1; i <= Math.min(5, hourMeta.slidesCount); i++) {
-          if (isCancelled) break;
-          const url = `/agpeya/${hourMeta.imageFolder}/Slide${i}.JPG`;
-          const match = await cache.match(url);
-          if (!match) {
-            await cache.add(url).catch(() => {});
-          }
-        }
-      } catch {
-        // Silently ignore prefetch errors
-      }
-    };
-
-    const timeout = setTimeout(() => {
-      if ("requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(prefetchSlides);
-      } else {
-        prefetchSlides();
-      }
-    }, 2000);
-
-    return () => {
-      isCancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [hourMeta]);
-
-  // Download single prayer for offline
-  const downloadHourForOffline = async () => {
-    if (typeof window === "undefined" || !("caches" in window)) return;
-    setIsCaching(true);
-    setCacheProgress({ current: 0, total: hourMeta.slidesCount + 1 });
-
-    try {
-      const cache = await caches.open("agpeya-cache-v2");
-
-      // 1. Cache PDF
-      await cache.add(`/agpeya/${hourMeta.pdfFilename}`).catch(() => {});
-      setCacheProgress({ current: 1, total: hourMeta.slidesCount + 1 });
-
-      // 2. Cache slides
-      for (let i = 1; i <= hourMeta.slidesCount; i++) {
-        const url = `/agpeya/${hourMeta.imageFolder}/Slide${i}.JPG`;
-        try {
-          const match = await cache.match(url);
-          if (!match) await cache.add(url);
-        } catch {
-          // Ignore
-        }
-        setCacheProgress({ current: i + 1, total: hourMeta.slidesCount + 1 });
-      }
-
-      setIsHourCached(true);
-    } catch (err) {
-      console.error("Cache hour error:", err);
-    } finally {
-      setIsCaching(false);
-      setTimeout(() => setCacheProgress(null), 3000);
-    }
-  };
-
-  // Download ALL 7 prayers for offline
-  const downloadAllPrayersForOffline = async () => {
-    if (typeof window === "undefined" || !("caches" in window)) return;
-    setIsCaching(true);
-    let totalItems = 0;
-    HOURS.forEach((h) => (totalItems += h.slidesCount + 1));
-    setCacheProgress({ current: 0, total: totalItems });
-
-    try {
-      const cache = await caches.open("agpeya-cache-v2");
-      let count = 0;
-
-      for (const h of HOURS) {
-        // 1. Cache PDF first
-        await cache.add(`/agpeya/${h.pdfFilename}`).catch(() => {});
-        count++;
-        setCacheProgress({ current: count, total: totalItems });
-
-        // 2. Cache slides
-        for (let i = 1; i <= h.slidesCount; i++) {
-          const url = `/agpeya/${h.imageFolder}/Slide${i}.JPG`;
-          try {
-            const match = await cache.match(url);
-            if (!match) await cache.add(url);
-          } catch {
-            // Ignore individual slide error
-          }
-          count++;
-          setCacheProgress({ current: count, total: totalItems });
-        }
-      }
-
-      setIsHourCached(true);
-    } catch (err) {
-      console.error("Cache all error:", err);
-    } finally {
-      setIsCaching(false);
-      setTimeout(() => setCacheProgress(null), 3000);
-    }
-  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -270,20 +116,6 @@ export default function AgpeyaPage() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
-
-  const nextSlide = useCallback(() => {
-    if (currentSlideIndex < hourMeta.slidesCount - 1) {
-      setCurrentSlideIndex((prev) => prev + 1);
-      setImageError(false);
-    }
-  }, [currentSlideIndex, hourMeta.slidesCount]);
-
-  const prevSlide = useCallback(() => {
-    if (currentSlideIndex > 0) {
-      setCurrentSlideIndex((prev) => prev - 1);
-      setImageError(false);
-    }
-  }, [currentSlideIndex]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -299,7 +131,7 @@ export default function AgpeyaPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [nextSlide, prevSlide, viewMode]);
+  }, [currentSlideIndex, hourMeta.slidesCount, viewMode]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement && viewerRef.current) {
@@ -314,7 +146,18 @@ export default function AgpeyaPage() {
   const handleHourSelect = (key: HourKey) => {
     setSelectedHourKey(key);
     setCurrentSlideIndex(0);
-    setImageError(false);
+  };
+
+  const nextSlide = () => {
+    if (currentSlideIndex < hourMeta.slidesCount - 1) {
+      setCurrentSlideIndex((prev) => prev + 1);
+    }
+  };
+
+  const prevSlide = () => {
+    if (currentSlideIndex > 0) {
+      setCurrentSlideIndex((prev) => prev - 1);
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -324,81 +167,42 @@ export default function AgpeyaPage() {
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX === null) return;
     const deltaX = e.changedTouches[0].clientX - touchStartX;
-    const SWIPE_THRESHOLD = 45;
+    const SWIPE_THRESHOLD = 50;
     if (deltaX < -SWIPE_THRESHOLD) {
-      nextSlide(); // In RTL, swipe left = Next slide
+      prevSlide(); // swipe left = prev slide
     } else if (deltaX > SWIPE_THRESHOLD) {
-      prevSlide(); // Swipe right = Prev slide
+      nextSlide(); // swipe right = next slide
     }
     setTouchStartX(null);
   };
 
   return (
     <PageWrapper>
-      <div className="max-w-4xl mx-auto space-y-6 w-full min-w-0">
+      <div className="max-w-4xl mx-auto space-y-6">
 
         {/* ── Header ── */}
         <div className="bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
+          <div className="pr-12 md:pr-0">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-400/20 text-amber-200 border border-amber-400/30">
               <BookOpen size={14} />
-              صلوات الأجبية القبطية (تعمل بدون إنترنت 100%)
+              صلوات الأجبية القبطية (العروض المعتمدة)
             </span>
             <h1 className="text-2xl sm:text-3xl font-black mt-2">صلوات الأجبية المقدسة</h1>
             <p className="text-amber-200/80 text-xs sm:text-sm mt-1">
-              "صلوا بلا انقطاع" (١تس ٥: ١٧) · عروض التقديم والصلوات المعتمدة
+              "صلوا بلا انقطاع" (١تس ٥: ١٧) · عروض التقديم والصلوات الخاصة بالاجتماع
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
-            {/* Cache Current Prayer */}
-            <button
-              onClick={downloadHourForOffline}
-              disabled={isCaching}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer border ${
-                isHourCached
-                  ? "bg-emerald-600/90 text-white border-emerald-500 hover:bg-emerald-600"
-                  : "bg-amber-600 hover:bg-amber-700 text-white border-amber-500"
-              }`}
-              title="حفظ الصلاة الحالية للأوفلاين"
+            {/* Download PPTX file button */}
+            <a
+              href={`/agpeya/${encodeURIComponent(hourMeta.filename)}`}
+              download
+              className="bg-amber-500 hover:bg-amber-600 text-amber-950 px-4 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer border border-amber-400/50"
             >
-              {isCaching ? (
-                <>
-                  <Loader2 size={13} className="animate-spin text-amber-200" />
-                  جاري الحفظ ({cacheProgress?.current}/{cacheProgress?.total})...
-                </>
-              ) : isHourCached ? (
-                <>
-                  <Check size={13} className="text-emerald-200" />
-                  محفوظة للأوفلاين ✅
-                </>
-              ) : (
-                <>
-                  <WifiOff size={13} className="text-amber-200" />
-                  حفظ الصلاة أوفلاين
-                </>
-              )}
-            </button>
-
-            {/* Cache ALL 7 Prayers */}
-            <button
-              onClick={downloadAllPrayersForOffline}
-              disabled={isCaching}
-              className="px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer bg-amber-800/80 hover:bg-amber-700 text-amber-100 border border-amber-600/70"
-              title="حفظ السبع صلوات كاملة للأوفلاين"
-            >
-              <Download size={13} />
-              حفظ السبع صلوات
-            </button>
-
-            {/* Read as PDF link */}
-            <Link
-              href={`/library/view?url=${encodeURIComponent(`/agpeya/${hourMeta.pdfFilename}`)}&title=${encodeURIComponent(hourMeta.title)}&type=pdf`}
-              className="bg-amber-500 hover:bg-amber-600 text-amber-950 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md border border-amber-400/50 cursor-pointer"
-            >
-              <FileText size={13} />
-              قراءة كـ PDF
-            </Link>
+              <Download size={14} />
+              تحميل ملف العرض PowerPoint
+            </a>
           </div>
         </div>
 
@@ -434,7 +238,7 @@ export default function AgpeyaPage() {
           <div>
             <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
               <Presentation size={18} className="text-amber-600" />
-              {hourMeta.title} ({hourMeta.slidesCount} شريحة)
+              {hourMeta.title} ({hourMeta.slidesCount} شريحة / سلايد)
             </h2>
             <p className="text-xs text-stone-500 mt-0.5">{hourMeta.subTitle}</p>
           </div>
@@ -468,24 +272,16 @@ export default function AgpeyaPage() {
               isFullscreen ? "border-none !rounded-none w-screen h-screen bg-black" : "border-amber-200/80"
             }`}
           >
-            {/* Slide Header Toolbar */}
-            <div className={`bg-amber-950 text-white px-4 sm:px-6 py-3 flex items-center justify-between ${
+            {/* Slide Header Toolbar - always visible */}
+            <div className={`bg-amber-950 text-white px-6 py-3.5 flex items-center justify-between ${
               isFullscreen ? "border-b border-amber-900/40" : "border-b border-amber-900"
             }`}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                  <Sparkles size={14} />
-                  شريحة {currentSlideIndex + 1} من {hourMeta.slidesCount}
-                </span>
-                {isHourCached && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-full font-bold">
-                    <WifiOff size={10} />
-                    أوفلاين
-                  </span>
-                )}
-              </div>
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                <Sparkles size={14} />
+                شريحة {currentSlideIndex + 1} من {hourMeta.slidesCount}
+              </span>
 
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={toggleFullscreen}
                   className="p-1.5 bg-amber-700 hover:bg-amber-600 rounded-xl text-white transition-all cursor-pointer border border-amber-600"
@@ -493,7 +289,7 @@ export default function AgpeyaPage() {
                 >
                   {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                 </button>
-                <div className="flex items-center gap-1.5 border-r border-amber-800 pr-2 sm:pr-3">
+                <div className="flex items-center gap-1.5 border-r border-amber-800 pr-3">
                   <button
                     onClick={prevSlide}
                     disabled={currentSlideIndex === 0}
@@ -516,91 +312,67 @@ export default function AgpeyaPage() {
 
             {/* Slide Image Card */}
             <div
-              className={`flex items-center justify-center relative flex-1 overflow-hidden min-h-[300px] ${
-                isFullscreen ? "bg-black" : "bg-black/5"
-              }`}
+              className={`flex items-center justify-center relative flex-1 overflow-hidden ${isFullscreen ? "bg-black" : "bg-black/5"}`}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              {imageError ? (
-                <div className="flex flex-col items-center justify-center p-8 text-center bg-stone-900 text-white rounded-2xl m-4 border border-stone-700">
-                  <WifiOff size={36} className="text-amber-500 mb-3" />
-                  <h3 className="font-bold text-sm mb-1">تعذر تحميل الشريحة (أنت غير متصل بالإنترنت)</h3>
-                  <p className="text-xs text-stone-400 mb-4 max-w-sm">
-                    لم يتم تخزين هذه الشريحة مؤقتاً بعد. يمكنك حفظ الصلاة عند الاتصال بالإنترنت أو استخدام نسخة الـ PDF.
-                  </p>
-                  <div className="flex items-center gap-3">
+              {/* Wrapper sized exactly to the slide's aspect ratio - overlays will be relative to this */}
+              <div
+                className="relative"
+                style={{
+                  aspectRatio: "720 / 540",
+                  maxWidth: "100%",
+                  maxHeight: isFullscreen ? "calc(100vh - 56px)" : "65vh",
+                  width: "auto",
+                }}
+              >
+                <img
+                  src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 1}.JPG`}
+                  alt={`شريحة ${currentSlideIndex + 1}`}
+                  className="w-full h-full object-fill shadow-md"
+                  style={{ display: "block" }}
+                  loading="eager"
+                />
+
+                {/* Preload adjacent slides to prevent delay when navigating */}
+                <div className="hidden" aria-hidden="true">
+                  {currentSlideIndex > 0 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex}.JPG`} alt="preload prev" />
+                  )}
+                  {currentSlideIndex < hourMeta.slidesCount - 1 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 2}.JPG`} alt="preload next 1" />
+                  )}
+                  {currentSlideIndex < hourMeta.slidesCount - 2 && (
+                    <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 3}.JPG`} alt="preload next 2" />
+                  )}
+                </div>
+
+                {/* Hyperlinks Overlay - positioned as % of the slide's coordinate space */}
+                {hourLinks?.slides?.[(currentSlideIndex + 1).toString()]?.map((link: any, i: number) => {
+                  const left = (link.x / hourLinks.slideSize.width) * 100;
+                  const top = (link.y / hourLinks.slideSize.height) * 100;
+                  const width = (link.w / hourLinks.slideSize.width) * 100;
+                  const height = (link.h / hourLinks.slideSize.height) * 100;
+
+                  return (
                     <button
-                      onClick={() => setImageError(false)}
-                      className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-xl text-xs font-bold transition-all"
-                    >
-                      إعادة المحاولة
-                    </button>
-                    <Link
-                      href={`/library/view?url=${encodeURIComponent(`/agpeya/${hourMeta.pdfFilename}`)}&title=${encodeURIComponent(hourMeta.title)}&type=pdf`}
-                      className="px-4 py-2 bg-stone-700 hover:bg-stone-600 rounded-xl text-xs font-bold transition-all"
-                    >
-                      فتح كـ PDF
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="relative"
-                  style={{
-                    aspectRatio: "720 / 540",
-                    maxWidth: "100%",
-                    maxHeight: isFullscreen ? "calc(100vh - 56px)" : "65vh",
-                    width: "auto",
-                  }}
-                >
-                  <img
-                    key={`slide_${selectedHourKey}_${currentSlideIndex + 1}`}
-                    src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 1}.JPG`}
-                    alt={`شريحة ${currentSlideIndex + 1}`}
-                    className="w-full h-full object-fill shadow-md"
-                    style={{ display: "block" }}
-                    loading="eager"
-                    onError={() => setImageError(true)}
-                  />
-
-                  {/* Preload adjacent slides */}
-                  <div className="hidden" aria-hidden="true">
-                    {currentSlideIndex > 0 && (
-                      <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex}.JPG`} alt="preload prev" />
-                    )}
-                    {currentSlideIndex < hourMeta.slidesCount - 1 && (
-                      <img src={`/agpeya/${hourMeta.imageFolder}/Slide${currentSlideIndex + 2}.JPG`} alt="preload next 1" />
-                    )}
-                  </div>
-
-                  {/* Hyperlinks Overlay */}
-                  {hourLinks?.slides?.[(currentSlideIndex + 1).toString()]?.map((link: any, i: number) => {
-                    const left = (link.x / hourLinks.slideSize.width) * 100;
-                    const top = (link.y / hourLinks.slideSize.height) * 100;
-                    const width = (link.w / hourLinks.slideSize.width) * 100;
-                    const height = (link.h / hourLinks.slideSize.height) * 100;
-
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentSlideIndex(link.targetSlide - 1)}
-                        style={{
-                          position: "absolute",
-                          left: `${left}%`,
-                          top: `${top}%`,
-                          width: `${width}%`,
-                          height: `${height}%`,
-                          background: "transparent",
-                          border: "none",
-                          outline: "none",
-                        }}
-                        title={`الذهاب إلى شريحة ${link.targetSlide}`}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+                      key={i}
+                      onClick={() => setCurrentSlideIndex(link.targetSlide - 1)}
+                      style={{
+                        position: "absolute",
+                        left: `${left}%`,
+                        top: `${top}%`,
+                        width: `${width}%`,
+                        height: `${height}%`,
+                        background: "transparent",
+                        border: "none",
+                        outline: "none",
+                      }}
+                      title={`الذهاب إلى شريحة ${link.targetSlide}`}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
             {/* Slide Footer Navigator */}
@@ -615,19 +387,9 @@ export default function AgpeyaPage() {
                   السابقة
                 </button>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={1}
-                    max={hourMeta.slidesCount}
-                    value={currentSlideIndex + 1}
-                    onChange={(e) => setCurrentSlideIndex(parseInt(e.target.value, 10) - 1)}
-                    className="w-24 sm:w-44 accent-amber-600 cursor-pointer"
-                  />
-                  <span className="text-xs font-bold text-amber-900 tabular-nums min-w-[3.5rem] text-center">
-                    {currentSlideIndex + 1} / {hourMeta.slidesCount}
-                  </span>
-                </div>
+                <span className="text-xs font-bold text-amber-900">
+                  {currentSlideIndex + 1} / {hourMeta.slidesCount}
+                </span>
 
                 <button
                   onClick={nextSlide}
@@ -658,9 +420,6 @@ export default function AgpeyaPage() {
                   alt={`شريحة ${idx + 1}`}
                   className="w-full h-auto object-contain"
                   loading="lazy"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = "none";
-                  }}
                 />
               </div>
             ))}
